@@ -12,8 +12,8 @@ export const Login = memo(() => {
 
     try {
       const res = await axios.post(
-        // "https://phone-b-navy.vercel.app/api/login",
-        "http://localhost:8081/api/login",
+        "https://lolaaftol-b.vercel.app/api/login",
+        // "http://localhost:8081/api/login",
         value
       );
       console.log(res.data);

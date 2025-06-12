@@ -1,9 +1,10 @@
 // 🔃 Importlar
 import React, { useState } from 'react';
-import { Button, Modal, Table, Popover, Input, Select, message } from 'antd';
+import { Button, Modal, Table, Popover, Input, Select, message, Popconfirm } from 'antd';
 import { FaEye } from 'react-icons/fa';
-import { useCreatePaymentToMasterMutation, useGetMastersQuery } from '../../context/service/master.service';
+import { useCreatePaymentToMasterMutation, useDeleteMasterMutation, useGetMastersQuery } from '../../context/service/master.service';
 import { useGetUsdRateQuery } from '../../context/service/usd.service';
+import { MdDelete } from "react-icons/md";
 
 const { Option } = Select;
 
@@ -13,19 +14,19 @@ const MastersModal = ({ visible, onClose }) => {
     const [openPaymentPopover, setOpenPaymentPopover] = useState(null);
     const [selectedPayment, setSelectedPayment] = useState({});
     const [createPayment] = useCreatePaymentToMasterMutation();
+    const [deleteMaster] = useDeleteMasterMutation();
     const { data: rate = {} } = useGetUsdRateQuery()
-    console.log(rate);
 
     const usdRate = rate.rate
 
     const handlePayment = async (masterId, carId) => {
-        const { amount, currency } = selectedPayment;
+        const { amount, currency, payment_method } = selectedPayment;
         if (!amount || !currency) return message.warning("To'liq to'ldiring");
         try {
             await createPayment({
                 master_id: masterId,
                 car_id: carId,
-                payment: { amount, currency }
+                payment: { amount, currency, payment_method }
             });
             message.success("To'lov qo'shildi");
             setOpenPaymentPopover(null);
@@ -115,6 +116,7 @@ const MastersModal = ({ visible, onClose }) => {
                             columns={[
                                 { title: "Miqdor", dataIndex: "amount" },
                                 { title: "Valyuta", dataIndex: "currency", render: c => c.toUpperCase() },
+                                { title: "To'lov usuli", dataIndex: "payment_method", render: (text) => text === 'cash' ? "Naqd" : "Karta" },
                                 { title: "Sana", dataIndex: "date", render: d => new Date(d).toLocaleDateString() }
                             ]}
                             dataSource={car.payment_log}
@@ -142,12 +144,20 @@ const MastersModal = ({ visible, onClose }) => {
                                 onChange={(e) => setSelectedPayment({ ...selectedPayment, amount: e.target.value })}
                             />
                             <Select
-                                defaultValue="sum"
+                                defaultValue=""
                                 onChange={(value) => setSelectedPayment({ ...selectedPayment, currency: value })}
                                 style={{ width: '100%', marginTop: 8 }}
                             >
                                 <Option value="sum">So'm</Option>
                                 <Option value="usd">USD</Option>
+                            </Select>
+                            <Select
+                                defaultValue=""
+                                onChange={(value) => setSelectedPayment({ ...selectedPayment, payment_method: value })}
+                                style={{ width: '100%', marginTop: 8 }}
+                            >
+                                <Option value="cash">Naqd</Option>
+                                <Option value="card">Karta</Option>
                             </Select>
                             <Button
                                 type="primary"
@@ -170,65 +180,6 @@ const MastersModal = ({ visible, onClose }) => {
             title: 'Ismi',
             dataIndex: 'master_name'
         },
-        // {
-        //     title: 'To\'lov',
-        //     render: (_, record) => (
-        //         <Popover
-        //             trigger="click"
-        //             open={openPaymentPopover === record._id}
-        //             onOpenChange={(open) => setOpenPaymentPopover(open ? record._id : null)}
-        //             content={(
-        //                 <div style={{ width: 200 }}>
-        //                     <Input
-        //                         placeholder="Miqdori"
-        //                         type="number"
-        //                         onChange={(e) => setSelectedPayment({ ...selectedPayment, amount: e.target.value })}
-        //                     />
-        //                     <Select
-        //                         defaultValue="sum"
-        //                         onChange={(value) => setSelectedPayment({ ...selectedPayment, currency: value })}
-        //                         style={{ width: '100%', marginTop: 8 }}
-        //                     >
-        //                         <Option value="sum">So'm</Option>
-        //                         <Option value="usd">USD</Option>
-        //                     </Select>
-        //                     <Button
-        //                         type="primary"
-        //                         style={{ marginTop: 10, width: '100%' }}
-        //                         onClick={() => handlePayment(record._id)}
-        //                     >
-        //                         To'lovni yuborish
-        //                     </Button>
-        //                 </div>
-        //             )}
-        //         >
-        //             <Button size="small">To'lov</Button>
-        //         </Popover>
-        //     )
-        // },
-        // {
-        //     title: "To'lov tarixi",
-        //     render: (_, record) => (
-        //         <Popover
-        //             trigger="click"
-        //             content={(
-        //                 <Table
-        //                     size="small"
-        //                     columns={[
-        //                         { title: 'Miqdor', dataIndex: 'amount', render: (text) => Number(text).toLocaleString() },
-        //                         { title: 'Valyuta', dataIndex: 'currency', render: (text) => text.toUpperCase() },
-        //                         { title: 'Sana', dataIndex: 'date', render: (date) => new Date(date).toLocaleDateString() },
-        //                     ]}
-        //                     dataSource={record.payment_log || []}
-        //                     pagination={false}
-        //                     rowKey={(row, index) => index}
-        //                 />
-        //             )}
-        //         >
-        //             <Button size="small" icon={<FaEye />} />
-        //         </Popover>
-        //     )
-        // },
         {
             title: "Umumiy sotuv (so'mda)",
             dataIndex: "cars",
@@ -245,17 +196,14 @@ const MastersModal = ({ visible, onClose }) => {
                 return totalSum.toLocaleString();
             },
         },
-        // {
-        //     title: "To'langan summa (so'mda)",
-        //     dataIndex: "payment_log",
-        //     render: (payments) => {
-        //         const totalPayments = payments.reduce((sum, p) => {
-        //             const converted = p.currency === 'usd' ? p.amount * usdRate : p.amount;
-        //             return sum + converted;
-        //         }, 0);
-        //         return totalPayments.toLocaleString();
-        //     },
-        // }
+        {
+            title: "O'chirish",
+            render: (_, record) => (
+                <Popconfirm title="Chindan ham ustani o'chirmoqchimisiz?" okText="Ha" cancelText="Yo'q" onCancel={() => { }} onConfirm={() => { deleteMaster({ master_id: record._id }) }}>
+                    <Button variant='outlined' color='danger' icon={<MdDelete />}></Button>
+                </Popconfirm>
+            )
+        }
     ];
 
     return (

@@ -56,11 +56,17 @@ export default function Xarajatlar() {
       title: "Xarajat summasi",
       dataIndex: "payment_summ",
       key: "payment_summ",
+      render: (text) => text.toLocaleString()
     },
     {
       title: "Xarajat sababi",
       dataIndex: "comment",
       key: "comment",
+    },
+    {
+      title: "Xodim ismi",
+      dataIndex: "staff_name",
+      key: "staff_name",
     },
   ];
 
@@ -96,6 +102,12 @@ export default function Xarajatlar() {
           >
             <Input.TextArea placeholder="Xarajat sababi" />
           </Form.Item>
+          <Form.Item
+            label="Xodim ismi"
+            name="staff_name"
+          >
+            <Input.TextArea placeholder="Xodim ismi" />
+          </Form.Item>
           <Form.Item>
             <Button
               type="primary"
@@ -116,7 +128,7 @@ export default function Xarajatlar() {
         pagination={{ pageSize: 5 }} // Har bir sahifada 5 ta yozuv
       />
 
-  
+
     </div>
   );
 }

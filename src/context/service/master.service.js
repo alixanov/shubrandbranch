@@ -45,6 +45,14 @@ export const masterApi = apiSlice.injectEndpoints({
             }),
             invalidatesTags: ["Master"],
         }),
+
+        deleteMaster: builder.mutation({
+            query: ({ master_id }) => ({
+                url: `/master/${master_id}/delete`,
+                method: "DELETE"
+            }),
+            invalidatesTags: ["Master"]
+        })
     }),
 });
 
@@ -53,5 +61,6 @@ export const {
     useGetMastersQuery,
     useCreateCarToMasterMutation,
     useCreateSaleToCarMutation,
-    useCreatePaymentToMasterMutation
+    useCreatePaymentToMasterMutation,
+    useDeleteMasterMutation
 } = masterApi;

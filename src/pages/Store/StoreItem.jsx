@@ -78,6 +78,8 @@ export default function StoreItem() {
     });
 
   const preparePrintData = (product) => {
+    console.log(product);
+
     const priceVal = product.product_id?.sell_price ?? 0;
     const priceCurrency =
       product.product_id?.sell_currency === "usd" ? "$" : "so'm";
@@ -87,6 +89,7 @@ export default function StoreItem() {
       model: product.product_id?.model ?? "",
       price: `${priceVal.toFixed(0)}${priceCurrency}`,
       barcode: product.product_id?.barcode ?? "0000000000000",
+      special_notes: product.product_id?.special_notes ?? "-",
     };
   };
 
@@ -246,6 +249,7 @@ export default function StoreItem() {
       }
     );
   };
+  console.log(printData);
 
   return (
     <div>
@@ -291,15 +295,15 @@ export default function StoreItem() {
                   </div>
                 </div>
                 <span> {printData.barcode}</span>
-                 <div
+                <div
                   style={{
                     fontSize: "20px",
                     fontWeight: "900",
                     transform: "translateY(5px)",
                   }}
                 >
-                  <p>+9989400000000</p>
-                </div> 
+                  <p>{printData.special_notes}</p>
+                </div>
               </div>
               <QRCodeSVG
                 style={{

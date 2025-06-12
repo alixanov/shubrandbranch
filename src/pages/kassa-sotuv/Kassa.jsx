@@ -33,7 +33,6 @@ import Xarajatlar from "../Xarajatlar/Xarajatlar";
 import { useReactToPrint } from "react-to-print";
 import moment from "moment-timezone";
 import Vazvrat from "../vazvrat/Vazvrat";
-import tgqr from "../../assets/tgqr.png";
 import logo from "../../assets/logo.png";
 import { debounce } from "lodash";
 
@@ -403,7 +402,7 @@ export default function Kassa() {
         }
       }
 
-      setSelectedProducts([]);
+      // setSelectedProducts([]);
       message.success("Mahsulotlar muvaffaqiyatli sotildi!");
       setIsModalVisible(false);
     } catch (error) {
@@ -433,7 +432,7 @@ export default function Kassa() {
       <Modal
         open={chekModal}
         style={{ display: "flex", justifyContent: "center" }}
-        onCancel={() => setChekModal(false)}
+        onCancel={() => { setChekModal(false); setSelectedProducts([]) }}
         footer={[
           <Button type="primary" onClick={handlePrint}>
             Chop etish
@@ -460,11 +459,12 @@ export default function Kassa() {
               display: "flex",
               width: "100%",
               alignItems: "center",
+              justifyContent: 'center',
               gap: "20px",
               fontWeight: "bold",
             }}
           >
-            {/* <img src={logo} alt="" width={90} /> */}
+            <img src={logo} alt="" width={150} />
             {/* EUROPE GAZ */}
           </h1>
           <div className="chek_item">
@@ -475,8 +475,8 @@ export default function Kassa() {
                 fontWeight: "bold",
               }}
             >
-              {/* Akmalxon: <span>+99893 673 33 33</span> <br />
-              Bahromjon <span>+99891 367 70 80</span> <br /> */}
+              <span>+998 91 294 87 80</span> <br />
+              <span>+998 90 790 42 32</span> <br />
             </p>
           </div>
           {/* <p id="tgqr_p">
@@ -528,7 +528,7 @@ export default function Kassa() {
                 <td colSpan={4} style={{ border: "none" }}></td>
                 <td>
                   <h1>Жами:</h1>
-                  {totalAmount.toFixed(2)}
+                  {Number(totalAmount.toFixed(2)).toLocaleString()}
                 </td>
               </tr>
             </tbody>
@@ -829,6 +829,9 @@ export default function Kassa() {
           loading={isLoading}
           style={{ width: "100%" }}
           columns={[
+            { title: "Brend", dataIndex: "brand_name", key: "brand_name" },
+            { title: "Modeli", dataIndex: "model", key: "model" },
+
             {
               title: "Mahsulot nomi",
               dataIndex: "product_name",
@@ -838,6 +841,8 @@ export default function Kassa() {
               title: "Tan narxi",
               dataIndex: "purchase_price",
               key: "purchase_price",
+
+              render: (text) => text.toLocaleString()
             },
             {
               title: (
@@ -872,11 +877,9 @@ export default function Kassa() {
                   (product) => product.product_id?._id === record._id
                 )?.quantity || 0,
             },
-            { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
-            { title: "Modeli", dataIndex: "model", key: "model" },
+            // { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
             { title: "Qutisi", dataIndex: "packing_type", key: "packing_type" },
             { title: "Izoh", dataIndex: "special_notes", key: "special_notes" },
-            { title: "Brend", dataIndex: "brand_name", key: "brand_name" },
             {
               title: "kimdan-kelgan",
               dataIndex: "kimdan_kelgan",
@@ -914,6 +917,7 @@ export default function Kassa() {
                   title: "Tan narxi",
                   dataIndex: "purchase_price",
                   key: "purchase_price",
+                  render: (text) => text.toLocaleString()
                 },
                 {
                   title: (
@@ -945,7 +949,7 @@ export default function Kassa() {
                   },
                 },
                 { title: "Miqdori", dataIndex: "quantity", key: "quantity" },
-                { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
+                // { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
                 {
                   title: "Soni",
                   key: "quantity",
@@ -1005,8 +1009,8 @@ export default function Kassa() {
             <div style={{ marginTop: 20, fontSize: "1.5em" }}>
               <strong>Umumiy summa: </strong>
               {currency === "usd"
-                ? `${totalAmount.toFixed(2)} USD`
-                : `${totalAmount.toFixed(2)} So'm`}
+                ? `${Number(totalAmount.toFixed(2)).toLocaleString()} USD`
+                : `${Number(totalAmount.toFixed(2)).toLocaleString()} So'm`}
             </div>
             <Button
               type="primary"

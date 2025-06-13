@@ -19,8 +19,6 @@ export const baseQueryWithReauth = async (args, api, extraOptions) => {
   }
   return result;
 };
-// gfhghf
-// Create an auto-generated hooks for each endpoint
 export const apiSlice = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithReauth,

@@ -12,7 +12,7 @@ export const Login = memo(() => {
 
     try {
       const res = await axios.post(
-        "https://lolaaftol-b.vercel.app/api",
+        "https://lolaaftol-b.vercel.app/api/login",
         // "http://localhost:8082/api/login",
         value
       );

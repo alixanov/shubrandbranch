@@ -16,8 +16,7 @@ export const Login = memo(() => {
         // "http://localhost:8082/api/login",
         value
       );
-      console.log(res.data);
-
+// cfsdcscs
       const token = res.data.token;
       const acsess = res.data.success;
       const role = res.data.role;

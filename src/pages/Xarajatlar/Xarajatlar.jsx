@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Button, Form, Input, Modal, Table, message } from "antd";
+import { Button, Form, Input, Modal, Card, Row, Col, message } from "antd";
 import {
   useGetExpensesQuery,
   useAddExpenseMutation,
@@ -13,13 +13,9 @@ export default function Xarajatlar() {
   const [form] = Form.useForm();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [expenses, setExpenses] = useState([]);
-  const { data: budgetData, isLoading: budgetLoading } = useGetBudgetQuery();
+  const { data: budgetData } = useGetBudgetQuery();
   const [updateBudget] = useUpdateBudgetMutation();
-  const {
-    data: expensesData,
-    error: getError,
-    isLoading: isGetLoading,
-  } = useGetExpensesQuery();
+  const { data: expensesData, isLoading } = useGetExpensesQuery();
   const [addExpense, { isLoading: isAddLoading }] = useAddExpenseMutation();
 
   useEffect(() => {
@@ -41,7 +37,7 @@ export default function Xarajatlar() {
     try {
       const response = await addExpense(values).unwrap();
       await updateBudget(Number(values.payment_summ)).unwrap();
-      setExpenses([...expenses, { ...values, key: expenses.length }]);
+      setExpenses([...expenses, values]);
       form.resetFields();
       message.success(response.message);
       setIsModalVisible(false);
@@ -51,24 +47,12 @@ export default function Xarajatlar() {
     }
   };
 
-  const columns = [
-    {
-      title: "Xarajat summasi",
-      dataIndex: "payment_summ",
-      key: "payment_summ",
-      render: (text) => text.toLocaleString()
-    },
-    {
-      title: "Xarajat sababi",
-      dataIndex: "comment",
-      key: "comment",
-    },
-    {
-      title: "Xodim ismi",
-      dataIndex: "staff_name",
-      key: "staff_name",
-    },
-  ];
+  // Guruhlash: staff_name bo‘yicha xarajatlarni ajratish
+  const groupedExpenses = expenses.reduce((acc, item) => {
+    if (!acc[item.staff_name]) acc[item.staff_name] = [];
+    acc[item.staff_name].push(item);
+    return acc;
+  }, {});
 
   return (
     <div>
@@ -82,10 +66,9 @@ export default function Xarajatlar() {
 
       <Modal
         title="Xarajat Qo'shish"
-        visible={isModalVisible}
+        open={isModalVisible}
         onCancel={handleCancel}
         footer={null}
-        style={{ marginTop: "50px" }}
       >
         <Form layout="vertical" form={form} onFinish={handleFinish}>
           <Form.Item
@@ -105,30 +88,37 @@ export default function Xarajatlar() {
           <Form.Item
             label="Xodim ismi"
             name="staff_name"
+            rules={[{ required: true, message: "Xodim ismini kiriting!" }]}
           >
-            <Input.TextArea placeholder="Xodim ismi" />
+            <Input placeholder="Xodim ismi" />
           </Form.Item>
           <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              block
-              loading={isAddLoading}
-            >
+            <Button type="primary" htmlType="submit" block loading={isAddLoading}>
               Qo'shish
             </Button>
           </Form.Item>
         </Form>
       </Modal>
 
-      <Table
-        dataSource={expenses}
-        columns={columns}
-        loading={isGetLoading}
-        pagination={{ pageSize: 5 }} // Har bir sahifada 5 ta yozuv
-      />
-
-
+      <Row gutter={[16, 16]}>
+        {Object.entries(groupedExpenses).map(([staffName, staffExpenses]) => {
+          const totalSum = staffExpenses.reduce((acc, curr) => acc + Number(curr.payment_summ), 0);
+          return (
+            <Col xs={24} md={12} lg={8} key={staffName}>
+              <Card title={staffName} bordered>
+                <p><strong>Umumiy xarajat:</strong> {totalSum.toLocaleString()}</p>
+                <div>
+                  {staffExpenses.map((item, index) => (
+                    <div key={index} style={{ marginBottom: 8 }}>
+                      <strong>{item.payment_summ.toLocaleString()} </strong> — {item.comment}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </Col>
+          );
+        })}
+      </Row>
     </div>
   );
 }

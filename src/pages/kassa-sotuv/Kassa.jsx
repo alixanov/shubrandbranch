@@ -11,6 +11,7 @@ import {
   Input as AntdInput,
   DatePicker,
   Popconfirm,
+  Tooltip,
 } from "antd";
 import {
   useGetAllProductsQuery,
@@ -356,15 +357,20 @@ export default function Kassa() {
             sell_price:
               baseSellPrice,
             due_date: debtDueDate,
+            currency
           });
         }
       }
 
       if (paymentMethod === "qarz") {
+        console.log(debtorProducts);
+
         const totalDebt = debtorProducts.reduce(
           (acc, p) => acc + p.sell_price * p.product_quantity,
           0
         );
+        console.log(totalDebt);
+
         if (!selectedDebtor) {
           const debtorPayload = {
             name: debtorName?.trim(),
@@ -841,8 +847,11 @@ export default function Kassa() {
               title: "Tan narxi",
               dataIndex: "purchase_price",
               key: "purchase_price",
-
-              render: (text) => text.toLocaleString()
+              render: (text) => (
+                <Tooltip title={text.toLocaleString()}>
+                  <span style={{ cursor: "pointer" }}>******</span>
+                </Tooltip>
+              )
             },
             {
               title: (

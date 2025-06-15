@@ -16,10 +16,7 @@ function createWindow() {
 
   // React dev server ishlatish uchun (development)
   mainWindow.loadURL("http://localhost:3000");
-  // Production uchun build qilingan faylni ishlatish:
-  // mainWindow.loadFile(path.join(__dirname, "build", "index.html"));
 
-  // Developer tools ochish (test uchun ixtiyoriy)
 }
 
 app.whenReady().then(() => {

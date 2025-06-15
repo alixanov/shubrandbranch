@@ -15,8 +15,7 @@ import {
 } from "antd";
 import {
   useGetAllProductsQuery,
-  useUpdateProductMutation,
-} from "../../context/service/addproduct.service";
+  useUpdateProductMutatio,} from "../../context/service/addproduct.service";
 import { useRecordSaleMutation } from "../../context/service/sale.service";
 import {
   useSellProductFromStoreMutation,
@@ -843,16 +842,7 @@ export default function Kassa() {
               dataIndex: "product_name",
               key: "product_name",
             },
-            {
-              title: "Tan narxi",
-              dataIndex: "purchase_price",
-              key: "purchase_price",
-              render: (text) => (
-                <Tooltip title={text.toLocaleString()}>
-                  <span style={{ cursor: "pointer" }}>******</span>
-                </Tooltip>
-              )
-            },
+       
             {
               title: (
                 <span>
@@ -922,12 +912,7 @@ export default function Kassa() {
                   dataIndex: "product_name",
                   key: "product_name",
                 },
-                {
-                  title: "Tan narxi",
-                  dataIndex: "purchase_price",
-                  key: "purchase_price",
-                  render: (text) => text.toLocaleString()
-                },
+            
                 {
                   title: (
                     <span>

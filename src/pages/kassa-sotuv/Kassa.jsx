@@ -15,7 +15,8 @@ import {
 } from "antd";
 import {
   useGetAllProductsQuery,
-  useUpdateProductMutatio,} from "../../context/service/addproduct.service";
+  useUpdateProductMutation,
+} from "../../context/service/addproduct.service";
 import { useRecordSaleMutation } from "../../context/service/sale.service";
 import {
   useSellProductFromStoreMutation,
@@ -42,7 +43,13 @@ import {
   useCreateNasiyaMutation,
   useGetNasiyaQuery,
 } from "../../context/service/nasiya.service";
-import { useCreateCarToMasterMutation, useCreateMasterMutation, useCreatePaymentToMasterMutation, useCreateSaleToCarMutation, useGetMastersQuery } from "../../context/service/master.service";
+import {
+  useCreateCarToMasterMutation,
+  useCreateMasterMutation,
+  useCreatePaymentToMasterMutation,
+  useCreateSaleToCarMutation,
+  useGetMastersQuery,
+} from "../../context/service/master.service";
 import MastersModal from "../../components/masters/MastersModal";
 const { Option } = Select;
 
@@ -73,11 +80,11 @@ export default function Kassa() {
   const [updateProduct] = useUpdateProductMutation();
   const [recordSale] = useRecordSaleMutation();
   const [sellProductFromStore] = useSellProductFromStoreMutation();
-  const [createMaster] = useCreateMasterMutation()
-  const { data: masters = [] } = useGetMastersQuery()
-  const [createCarToMaster] = useCreateCarToMasterMutation()
-  const [createSaleToCar] = useCreateSaleToCarMutation()
-  const [createPaymentToMaster] = useCreatePaymentToMasterMutation()
+  const [createMaster] = useCreateMasterMutation();
+  const { data: masters = [] } = useGetMastersQuery();
+  const [createCarToMaster] = useCreateCarToMasterMutation();
+  const [createSaleToCar] = useCreateSaleToCarMutation();
+  const [createPaymentToMaster] = useCreatePaymentToMasterMutation();
   const [createDebtor] = useCreateDebtorMutation();
   const [location, setLocation] = useState(null);
   const [sotuvtarixiModalVisible, setSotuvtarixiModalVisible] = useState(false);
@@ -96,9 +103,7 @@ export default function Kassa() {
   const [newMasterName, setNewMasterName] = useState("");
   const [selectedCarName, setSelectedCarName] = useState(null);
   const [newCarName, setNewCarName] = useState("");
-  const [masterModal, setMasterModal] = useState(false)
-
-
+  const [masterModal, setMasterModal] = useState(false);
 
   const handlePrint = useReactToPrint({
     content: () => receiptRef.current,
@@ -114,18 +119,18 @@ export default function Kassa() {
 
   const filteredProducts = searchTerm
     ? products?.filter((product) => {
-      const searchWords = searchTerm.toLowerCase().split(" ");
-      const fields = [
-        product.product_name?.toLowerCase() || "",
-        product.barcode?.toLowerCase() || "",
-        product.product_category?.toLowerCase() || "",
-        product.model?.toLowerCase() || "",
-        product.brand_name?.toLowerCase() || "",
-      ];
-      return searchWords.every((word) =>
-        fields.some((field) => field.includes(word))
-      );
-    })
+        const searchWords = searchTerm.toLowerCase().split(" ");
+        const fields = [
+          product.product_name?.toLowerCase() || "",
+          product.barcode?.toLowerCase() || "",
+          product.product_category?.toLowerCase() || "",
+          product.model?.toLowerCase() || "",
+          product.brand_name?.toLowerCase() || "",
+        ];
+        return searchWords.every((word) =>
+          fields.some((field) => field.includes(word))
+        );
+      })
     : [];
 
   const handleSelectProduct = (product) => {
@@ -140,10 +145,10 @@ export default function Kassa() {
             product.currency === currency
               ? product.sell_price
               : product.currency === "usd" && currency === "sum"
-                ? product.sell_price * usdRate
-                : product.currency === "sum" && currency === "usd"
-                  ? product.sell_price / usdRate
-                  : product.sell_price,
+              ? product.sell_price * usdRate
+              : product.currency === "sum" && currency === "usd"
+              ? product.sell_price / usdRate
+              : product.sell_price,
           currency, // Store the currency used when selecting the product
         },
       ]);
@@ -165,7 +170,9 @@ export default function Kassa() {
       if (item._id === productId) {
         const isDecimal = ["litr", "sm"].includes(item.count_type);
         const step = isDecimal ? 0.1 : 1;
-        const newQuantity = parseFloat((item.quantity + increment * step).toFixed(2));
+        const newQuantity = parseFloat(
+          (item.quantity + increment * step).toFixed(2)
+        );
 
         return {
           ...item,
@@ -183,11 +190,15 @@ export default function Kassa() {
         prev.map((item) =>
           item._id === productId
             ? {
-              ...item,
-              quantity: newQuantity >= (["litr", "sm"].includes(item.count_type) ? 0.1 : 1)
-                ? newQuantity
-                : ["litr", "sm"].includes(item.count_type) ? 0.1 : 1,
-            }
+                ...item,
+                quantity:
+                  newQuantity >=
+                  (["litr", "sm"].includes(item.count_type) ? 0.1 : 1)
+                    ? newQuantity
+                    : ["litr", "sm"].includes(item.count_type)
+                    ? 0.1
+                    : 1,
+              }
             : item
         )
       );
@@ -200,8 +211,6 @@ export default function Kassa() {
       debouncedQuantityUpdate(productId, parsedValue);
     }
   };
-
-
 
   const handleSellPriceChange = (productId, newPrice) => {
     const updatedProducts = selectedProducts.map((item) => {
@@ -236,12 +245,12 @@ export default function Kassa() {
       console.log(newMasterName);
 
       if (selectedMasterId === "new" && newMasterName?.trim()) {
-
-        const masterRes = await createMaster({ master_name: newMasterName }).unwrap();
+        const masterRes = await createMaster({
+          master_name: newMasterName,
+        }).unwrap();
         console.log(masterRes);
 
         masterId = masterRes.result._id;
-
       }
 
       let carId = null;
@@ -254,15 +263,15 @@ export default function Kassa() {
         if (masterId && selectedCarName === "new" && newCarName?.trim()) {
           const carRes = await createCarToMaster({
             master_id: masterId,
-            car: { car_name: newCarName }
+            car: { car_name: newCarName },
           }).unwrap();
           console.log(carRes);
 
-
           carId = carRes.car._id;
-
         } else if (masterId && selectedCarName) {
-          const car = currentMaster?.cars?.find((c) => c.car_name === selectedCarName);
+          const car = currentMaster?.cars?.find(
+            (c) => c.car_name === selectedCarName
+          );
           carId = car?._id;
         }
       }
@@ -272,14 +281,16 @@ export default function Kassa() {
           product.currency === currency
             ? product.sell_price
             : product.currency === "usd" && currency === "sum"
-              ? product.sell_price * usdRate
-              : product.currency === "sum" && currency === "usd"
-                ? product.sell_price / usdRate
-                : product.sell_price;
+            ? product.sell_price * usdRate
+            : product.currency === "sum" && currency === "usd"
+            ? product.sell_price / usdRate
+            : product.sell_price;
 
         if (location === "skalad") {
           if (product.stock < product.quantity) {
-            message.error(`${product.product_name} mahsuloti skaladda yetarli emas!`);
+            message.error(
+              `${product.product_name} mahsuloti skaladda yetarli emas!`
+            );
             return;
           }
           const newStock = product.stock - product.quantity;
@@ -289,11 +300,15 @@ export default function Kassa() {
             (p) => p.product_id?._id === product._id
           );
           if (!storeProduct) {
-            message.error(`${product.product_name} mahsuloti dokonda mavjud emas!`);
+            message.error(
+              `${product.product_name} mahsuloti dokonda mavjud emas!`
+            );
             return;
           }
           if (storeProduct.quantity < product.quantity) {
-            message.error(`${product.product_name} mahsuloti dokonda yetarli emas!`);
+            message.error(
+              `${product.product_name} mahsuloti dokonda yetarli emas!`
+            );
             return;
           }
           await sellProductFromStore({
@@ -316,9 +331,10 @@ export default function Kassa() {
             currency: currency,
             quantity: product.quantity,
             total_price: baseSellPrice * product.quantity,
-            total_price_sum: currency === "usd"
-              ? baseSellPrice * product.quantity * usdRate
-              : baseSellPrice * product.quantity,
+            total_price_sum:
+              currency === "usd"
+                ? baseSellPrice * product.quantity * usdRate
+                : baseSellPrice * product.quantity,
           };
 
           await createSaleToCar({
@@ -337,9 +353,10 @@ export default function Kassa() {
             sell_price: baseSellPrice,
             quantity: product.quantity,
             currency,
-            total_price_sum: currency === "usd"
-              ? baseSellPrice * product.quantity * usdRate
-              : baseSellPrice * product.quantity,
+            total_price_sum:
+              currency === "usd"
+                ? baseSellPrice * product.quantity * usdRate
+                : baseSellPrice * product.quantity,
             total_price: salePrice * product.quantity,
             payment_method: paymentMethod,
             product_quantity: product.quantity,
@@ -353,10 +370,9 @@ export default function Kassa() {
             product_id: product._id,
             product_name: product.product_name,
             product_quantity: product.quantity,
-            sell_price:
-              baseSellPrice,
+            sell_price: baseSellPrice,
             due_date: debtDueDate,
-            currency
+            currency,
           });
         }
       }
@@ -424,20 +440,24 @@ export default function Kassa() {
     return price;
   };
 
-
-
   const totalAmount = selectedProducts.reduce((acc, product) => {
-    const convertedPrice = convertPrice(product.sell_price, product.currency, currency);
+    const convertedPrice = convertPrice(
+      product.sell_price,
+      product.currency,
+      currency
+    );
     return acc + convertedPrice * product.quantity;
   }, 0);
-
 
   return (
     <div className="kassa-container">
       <Modal
         open={chekModal}
         style={{ display: "flex", justifyContent: "center" }}
-        onCancel={() => { setChekModal(false); setSelectedProducts([]) }}
+        onCancel={() => {
+          setChekModal(false);
+          setSelectedProducts([]);
+        }}
         footer={[
           <Button type="primary" onClick={handlePrint}>
             Chop etish
@@ -464,7 +484,7 @@ export default function Kassa() {
               display: "flex",
               width: "100%",
               alignItems: "center",
-              justifyContent: 'center',
+              justifyContent: "center",
               gap: "20px",
               fontWeight: "bold",
             }}
@@ -515,17 +535,14 @@ export default function Kassa() {
                   <td style={{ paddingBlock: "20px" }}>
                     {(
                       item.quantity *
-                      (
-                        item.currency === currency
-                          ? item.sell_price
-                          : item.currency === "usd" && currency === "sum"
-                            ? item.sell_price * usdRate
-                            : item.currency === "sum" && currency === "usd"
-                              ? item.sell_price / usdRate
-                              : item.sell_price
-                      )
+                      (item.currency === currency
+                        ? item.sell_price
+                        : item.currency === "usd" && currency === "sum"
+                        ? item.sell_price * usdRate
+                        : item.currency === "sum" && currency === "usd"
+                        ? item.sell_price / usdRate
+                        : item.sell_price)
                     ).toLocaleString()}
-
                   </td>
                 </tr>
               ))}
@@ -585,7 +602,10 @@ export default function Kassa() {
         <SotuvTarix />
       </Modal>
 
-      <MastersModal visible={masterModal} onClose={() => setMasterModal(false)} />
+      <MastersModal
+        visible={masterModal}
+        onClose={() => setMasterModal(false)}
+      />
 
       <Modal
         title="Tovarni nasiyaga berish"
@@ -842,7 +862,16 @@ export default function Kassa() {
               dataIndex: "product_name",
               key: "product_name",
             },
-       
+            {
+              title: "Tan narxi",
+              dataIndex: "purchase_price",
+              key: "purchase_price",
+              render: (text) => (
+                <Tooltip title={text.toLocaleString()}>
+                  <span style={{ cursor: "pointer" }}>******</span>
+                </Tooltip>
+              ),
+            },
             {
               title: (
                 <span>
@@ -861,7 +890,11 @@ export default function Kassa() {
               key: "sell_price",
               render: (_, record) => (
                 <span>
-                  {convertPrice(record.sell_price, record.currency, currency).toLocaleString()}
+                  {convertPrice(
+                    record.sell_price,
+                    record.currency,
+                    currency
+                  ).toLocaleString()}
                   {currency === "usd" ? " USD" : " So'm"}
                 </span>
               ),
@@ -901,7 +934,15 @@ export default function Kassa() {
           pagination={{ pageSize: 10 }}
         />
         {selectedProducts.length > 0 && (
-          <div style={{ marginTop: 20 }}>
+          <div style={{ marginTop: 20,
+           display: "flex", 
+           flexDirection: "column",
+           alignItems: "end",
+           justifyContent: "center",
+           
+           
+           
+           }}>
             <h2>Tanlangan mahsulotlar:</h2>
             <Table
               dataSource={selectedProducts}
@@ -912,7 +953,7 @@ export default function Kassa() {
                   dataIndex: "product_name",
                   key: "product_name",
                 },
-            
+          
                 {
                   title: (
                     <span>
@@ -929,7 +970,11 @@ export default function Kassa() {
                   ),
                   key: "sell_price",
                   render: (_, record) => {
-                    const price = convertPrice(record.sell_price, record.currency, currency);
+                    const price = convertPrice(
+                      record.sell_price,
+                      record.currency,
+                      currency
+                    );
                     return (
                       <input
                         type="number"
@@ -948,11 +993,18 @@ export default function Kassa() {
                   title: "Soni",
                   key: "quantity",
                   render: (_, record) => (
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
                       <Button
                         onClick={() => handleQuantityChange(record._id, -1)}
                         disabled={
-                          record.quantity <= (["litr", "sm"].includes(record.count_type) ? 0.1 : 1)
+                          record.quantity <=
+                          (["litr", "sm"].includes(record.count_type) ? 0.1 : 1)
                         }
                       >
                         -
@@ -965,12 +1017,13 @@ export default function Kassa() {
                           min="0.1"
                           value={record.quantity}
                           onChange={(e) =>
-                            handleQuantityInputChange(record._id, e.target.value)
+                            handleQuantityInputChange(
+                              record._id,
+                              e.target.value
+                            )
                           }
                           style={{ width: 60 }}
                         />
-
-
                       ) : (
                         <span>{record.quantity}</span>
                       )}
@@ -1032,7 +1085,6 @@ export default function Kassa() {
                 <Option value="plastik">Karta</Option>
                 <Option value="qarz">Qarz</Option>
                 <Option value="master">Ustaga</Option>
-
               </Select>
             </Form.Item>
             {paymentMethod === "qarz" && (
@@ -1120,7 +1172,6 @@ export default function Kassa() {
                       </Option>
                     ))}
                   </Select>
-
                 </Form.Item>
 
                 {selectedMasterId === "new" && (
@@ -1131,7 +1182,6 @@ export default function Kassa() {
                     />
                   </Form.Item>
                 )}
-
 
                 {selectedMasterId && selectedMasterId !== "new" && (
                   <Form.Item label="Mashinasini tanlang">
@@ -1157,7 +1207,6 @@ export default function Kassa() {
                   </Form.Item>
                 )}
 
-
                 {selectedCarName === "new" && (
                   <Form.Item label="Yangi mashina nomi">
                     <AntdInput
@@ -1168,7 +1217,6 @@ export default function Kassa() {
                 )}
               </>
             )}
-
 
             <Form.Item label="Joylashuv">
               <Select

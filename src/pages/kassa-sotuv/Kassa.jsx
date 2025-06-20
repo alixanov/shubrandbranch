@@ -127,37 +127,61 @@ export default function Kassa() {
           product.model?.toLowerCase() || "",
           product.brand_name?.toLowerCase() || "",
         ];
-        return searchWords.every((word) =>
+
+        // Faqat qidiruv so'zlariga mos kelgan mahsulotlarni qaytarish
+        const matchesSearch = searchWords.every((word) =>
           fields.some((field) => field.includes(word))
         );
+
+        // Ixtiyoriy: Faqat dokonda mavjud mahsulotlarni ko'rsatish
+        const storeProduct = storeProducts?.find(
+          (item) => item.product_id?._id === product._id
+        );
+        const hasStoreStock = (storeProduct?.quantity || 0) > 0;
+
+        return matchesSearch && hasStoreStock;
       })
     : [];
 
-  const handleSelectProduct = (product) => {
-    const exists = selectedProducts?.find((item) => item._id === product._id);
-    if (!exists) {
-      setSelectedProducts([
-        ...selectedProducts,
-        {
-          ...product,
-          quantity: 1,
-          sell_price:
-            product.currency === currency
-              ? product.sell_price
-              : product.currency === "usd" && currency === "sum"
-              ? product.sell_price * usdRate
-              : product.currency === "sum" && currency === "usd"
-              ? product.sell_price / usdRate
-              : product.sell_price,
-          currency, // Store the currency used when selecting the product
-        },
-      ]);
-      setSearchTerm("");
-    } else {
-      message.info("Bu mahsulot allaqachon tanlangan");
-    }
-  };
+    const handleSelectProduct = (product) => {
+      // Dokondagi mahsulot miqdorini tekshirish
+      const storeProduct = storeProducts?.find(
+        (item) => item.product_id?._id === product._id
+      );
 
+      const storeQuantity = storeProduct?.quantity || 0;
+
+      // Agar dokonda mahsulot yo'q bo'lsa ogohlantirish
+      if (storeQuantity === 0) {
+        message.warning(
+          `${product.product_name} mahsuloti dokonda mavjud emas! (Miqdor: 0)`
+        );
+        return;
+      }
+
+      const exists = selectedProducts?.find((item) => item._id === product._id);
+      if (!exists) {
+        setSelectedProducts([
+          ...selectedProducts,
+          {
+            ...product,
+            quantity: 1,
+            sell_price:
+              product.currency === currency
+                ? product.sell_price
+                : product.currency === "usd" && currency === "sum"
+                ? product.sell_price * usdRate
+                : product.currency === "sum" && currency === "usd"
+                ? product.sell_price / usdRate
+                : product.sell_price,
+            currency, // Store the currency used when selecting the product
+          },
+        ]);
+        setSearchTerm("");
+      } else {
+        message.info("Bu mahsulot allaqachon tanlangan");
+      }
+    };
   const handleRemoveProduct = (productId) => {
     const updatedProducts = selectedProducts.filter(
       (item) => item._id !== productId
@@ -861,6 +885,11 @@ export default function Kassa() {
               title: "Mahsulot nomi",
               dataIndex: "product_name",
               key: "product_name",
+            },
+            {
+              title: "Brend nomi",
+              dataIndex: "brand_name",
+              key: "brand_name",
             },
             {
               title: "Tan narxi",

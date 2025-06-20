@@ -85,15 +85,7 @@ const EditProductModal = ({ visible, onCancel, product, usdRate, isStore }) => {
               </Col>
             )
           }
-          <Col span={12}>
-            <Form.Item
-              label="Katalogi"
-              name="product_category"
-              rules={[{ required: true, message: "Majburiy maydon!" }]}
-            >
-              <Input placeholder="Katalogi" autoComplete="off" />
-            </Form.Item>
-          </Col>
+        
         </Row>
         <Row gutter={16}>
           <Col span={12}>
@@ -157,26 +149,7 @@ const EditProductModal = ({ visible, onCancel, product, usdRate, isStore }) => {
             </Form.Item>
           </Col>
         </Row>
-        <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item
-              label="Qadoq turi"
-              name="packing_type"
-              rules={[{ required: true, message: "Majburiy maydon!" }]}
-            >
-              <Input placeholder="Qadoq turi" autoComplete="off" />
-            </Form.Item>
-          </Col>
-          <Col span={12}>
-            <Form.Item
-              label="Shtrix kod"
-              name="barcode"
-              rules={[{ required: true, message: "Majburiy maydon!" }]}
-            >
-              <Input placeholder="Shtrix kod" autoComplete="off" disabled />
-            </Form.Item>
-          </Col>
-        </Row>
+ 
         <Row gutter={16}>
           <Col span={24}>
             <Form.Item label="Maxsus eslatmalar" name="special_notes">

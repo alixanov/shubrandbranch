@@ -105,6 +105,11 @@ export default function StoreItem() {
       render: (_, item) => item?.product_id?.model,
     },
     {
+      title: "Brendi",
+      key: "brendi",
+      render: (_, item) => item?.product_id?.brand_name,
+    },
+    {
       title: "Miqdor",
       key: "quantity",
       render: (_, item) => (
@@ -114,8 +119,8 @@ export default function StoreItem() {
               item.quantity === 0
                 ? "red"
                 : item.quantity <= 5
-                  ? "yellow"
-                  : "inherit",
+                ? "yellow"
+                : "inherit",
             display: "inline-block",
             padding: "15px",
             borderRadius: "3px",
@@ -130,8 +135,7 @@ export default function StoreItem() {
       key: "purchase_price",
       render: (_, record) => {
         const val = record.product_id?.purchase_price ?? 0;
-        const currency =
-          record.product_id?.currency === "usd" ? "$" : "so'm";
+        const currency = record.product_id?.currency === "usd" ? "$" : "so'm";
         return `${val.toFixed(0)}${currency}`;
       },
     },
@@ -140,8 +144,7 @@ export default function StoreItem() {
       key: "sell_price",
       render: (_, record) => {
         const val = record.product_id?.sell_price ?? 0;
-        const currency =
-          record.product_id?.currency === "usd" ? "$" : "so'm";
+        const currency = record.product_id?.currency === "usd" ? "$" : "so'm";
         return `${val.toFixed(0)}${currency}`;
       },
     },
@@ -163,10 +166,7 @@ export default function StoreItem() {
           <span>{item?.product_id?.barcode}</span>
           <ReactToPrint
             trigger={() => (
-              <Button
-                type="primary"
-                style={{ marginLeft: 10 }}
-              >
+              <Button type="primary" style={{ marginLeft: 10 }}>
                 <FaPrint /> Chop etish
               </Button>
             )}

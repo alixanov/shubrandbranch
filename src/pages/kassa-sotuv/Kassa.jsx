@@ -51,6 +51,7 @@ import {
   useGetMastersQuery,
 } from "../../context/service/master.service";
 import MastersModal from "../../components/masters/MastersModal";
+import tgqr from "../../assets/tgt.png";
 const { Option } = Select;
 
 export default function Kassa() {
@@ -143,45 +144,45 @@ export default function Kassa() {
       })
     : [];
 
-    const handleSelectProduct = (product) => {
-      // Dokondagi mahsulot miqdorini tekshirish
-      const storeProduct = storeProducts?.find(
-        (item) => item.product_id?._id === product._id
+  const handleSelectProduct = (product) => {
+    // Dokondagi mahsulot miqdorini tekshirish
+    const storeProduct = storeProducts?.find(
+      (item) => item.product_id?._id === product._id
+    );
+
+    const storeQuantity = storeProduct?.quantity || 0;
+
+    // Agar dokonda mahsulot yo'q bo'lsa ogohlantirish
+    if (storeQuantity === 0) {
+      message.warning(
+        `${product.product_name} mahsuloti dokonda mavjud emas! (Miqdor: 0)`
       );
+      return;
+    }
 
-      const storeQuantity = storeProduct?.quantity || 0;
-
-      // Agar dokonda mahsulot yo'q bo'lsa ogohlantirish
-      if (storeQuantity === 0) {
-        message.warning(
-          `${product.product_name} mahsuloti dokonda mavjud emas! (Miqdor: 0)`
-        );
-        return;
-      }
-
-      const exists = selectedProducts?.find((item) => item._id === product._id);
-      if (!exists) {
-        setSelectedProducts([
-          ...selectedProducts,
-          {
-            ...product,
-            quantity: 1,
-            sell_price:
-              product.currency === currency
-                ? product.sell_price
-                : product.currency === "usd" && currency === "sum"
-                ? product.sell_price * usdRate
-                : product.currency === "sum" && currency === "usd"
-                ? product.sell_price / usdRate
-                : product.sell_price,
-            currency, // Store the currency used when selecting the product
-          },
-        ]);
-        setSearchTerm("");
-      } else {
-        message.info("Bu mahsulot allaqachon tanlangan");
-      }
-    };
+    const exists = selectedProducts?.find((item) => item._id === product._id);
+    if (!exists) {
+      setSelectedProducts([
+        ...selectedProducts,
+        {
+          ...product,
+          quantity: 1,
+          sell_price:
+            product.currency === currency
+              ? product.sell_price
+              : product.currency === "usd" && currency === "sum"
+              ? product.sell_price * usdRate
+              : product.currency === "sum" && currency === "usd"
+              ? product.sell_price / usdRate
+              : product.sell_price,
+          currency, // Store the currency used when selecting the product
+        },
+      ]);
+      setSearchTerm("");
+    } else {
+      message.info("Bu mahsulot allaqachon tanlangan");
+    }
+  };
   const handleRemoveProduct = (productId) => {
     const updatedProducts = selectedProducts.filter(
       (item) => item._id !== productId
@@ -517,16 +518,7 @@ export default function Kassa() {
             {/* EUROPE GAZ */}
           </h1>
           <div className="chek_item">
-            <p
-              style={{
-                fontSize: "20px",
-                textAlign: "start",
-                fontWeight: "bold",
-              }}
-            >
-              <span>+998 91 294 87 80</span> <br />
-              <span>+998 90 790 42 32</span> <br />
-            </p>
+            <img width={200} src={tgqr} alt="" />
           </div>
           {/* <p id="tgqr_p">
             Телеграм каналимизга уланиш учун QR-кодни телефонингизда сканер
@@ -578,6 +570,16 @@ export default function Kassa() {
                 </td>
               </tr>
             </tbody>
+            <p
+              style={{
+                fontSize: "15px",
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+              <span>+998 91 294 87 80</span> <br />
+              <span>+998 90 790 42 32</span> <br />
+            </p>
           </table>
           {/* <h1 style={{ textAlign: "center" }}>
             Bizda yetkazib berish xizmati mavjud: Bahromjon{" "}
@@ -963,15 +965,15 @@ export default function Kassa() {
           pagination={{ pageSize: 10 }}
         />
         {selectedProducts.length > 0 && (
-          <div style={{ marginTop: 20,
-           display: "flex", 
-           flexDirection: "column",
-           alignItems: "end",
-           justifyContent: "center",
-           
-           
-           
-           }}>
+          <div
+            style={{
+              marginTop: 20,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "end",
+              justifyContent: "center",
+            }}
+          >
             <h2>Tanlangan mahsulotlar:</h2>
             <Table
               dataSource={selectedProducts}
@@ -982,7 +984,7 @@ export default function Kassa() {
                   dataIndex: "product_name",
                   key: "product_name",
                 },
-          
+
                 {
                   title: (
                     <span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Table,
   Card,
@@ -10,41 +10,37 @@ import {
   Button,
 } from "antd";
 import { useGetSalesHistoryQuery } from "../../context/service/sale.service";
-import { useGetUsdRateQuery } from "../../context/service/usd.service";
+// import { useGetUsdRateQuery } from "../../context/service/usd.service";
+import { useGetDebtorsQuery } from "../../context/service/debtor.service";
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 
 export default function SotuvTarix() {
   const { data: sales, isLoading } = useGetSalesHistoryQuery();
-  const { data: usdRateData } = useGetUsdRateQuery();
-
+  // const { data: usdRateData } = useGetUsdRateQuery();
+  const { data: debtors = [] } = useGetDebtorsQuery();
   const [filteredSales, setFilteredSales] = useState([]);
   const [selectedDateRange, setSelectedDateRange] = useState([null, null]);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [currency, setCurrency] = useState("");
+  const [filteredPayments, setFilteredPayments] = useState([]);
 
-  const currentRate = usdRateData?.rate || 12500;
-
-  // Sana intervali o'zgarganda
   const onDateChange = (dates) => {
     setSelectedDateRange(dates);
     filterSales(dates, paymentMethod, currency);
   };
 
-  // To'lov usuli tanlanganda
   const onPaymentMethodChange = (value) => {
     setPaymentMethod(value);
     filterSales(selectedDateRange, value, currency);
   };
 
-  // Valyuta tanlanganda
   const onCurrencyChange = (value) => {
     setCurrency(value);
     filterSales(selectedDateRange, paymentMethod, value);
   };
 
-  // Filtrlash funksiyasi
   const filterSales = (dates, payment, currency) => {
     let filtered = sales || [];
     if (dates && dates[0] && dates[1]) {
@@ -60,81 +56,129 @@ export default function SotuvTarix() {
       filtered = filtered.filter((f) => f.currency === currency);
     }
     setFilteredSales(filtered);
-  };
 
-  // Valyuta tekshirish funksiyasi
-  const isUsdCurrency = (currency) => {
-    const normalizedCurrency = (currency || "sum").toLowerCase();
-    return ["usd", "dollar", "us dollar"].includes(normalizedCurrency);
-  };
-
-  // Foyda hisoblash funksiyasi
-  const calculateProfit = (sale) => {
-    const sellPrice = sale.sell_price || 0;
-    const buyPrice = sale.buy_price || 0;
-    const quantity = sale.quantity || 0;
-    const purchaseCurrency =
-      sale.product_id?.purchase_currency || sale.currency;
-    const saleUsdRate = sale.usd_rate || currentRate;
-
-    if (isUsdCurrency(sale.currency)) {
-      // USD da sotilgan
-      const convertedBuyPrice = !isUsdCurrency(purchaseCurrency)
-        ? buyPrice / saleUsdRate
-        : buyPrice;
-      return (sellPrice - convertedBuyPrice) * quantity;
+    if (dates && dates[0] && dates[1]) {
+      const start = dates[0];
+      const end = dates[1];
+      const allPayments = [];
+      debtors.forEach((debtor) => {
+        debtor.payment_log?.forEach((log) => {
+          const logDate = new Date(log.date);
+          if (logDate >= start && logDate <= end) {
+            allPayments.push({
+              ...log,
+              client_name: debtor.name,
+              phone: debtor.phone,
+              date: logDate,
+            });
+          }
+        });
+      });
+      setFilteredPayments(allPayments);
     } else {
-      // So'mda sotilgan
-      const convertedBuyPrice = isUsdCurrency(purchaseCurrency)
-        ? buyPrice * saleUsdRate
-        : buyPrice;
-      return (sellPrice - convertedBuyPrice) * quantity;
+      setFilteredPayments([]);
     }
   };
 
-  // Narxni number formatga o'zgartirish funksiyasi (mingliklar bo'yicha ajratish)
+  const paymentSummary = useMemo(() => {
+    const sum = filteredPayments
+      .filter((p) => p.currency === "sum")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    const usd = filteredPayments
+      .filter((p) => p.currency === "usd")
+      .reduce((acc, cur) => acc + cur.amount, 0);
+    return { sum, usd };
+  }, [filteredPayments]);
+
+  const paymentColumns = [
+    { title: "Ism", dataIndex: "client_name", key: "client_name" },
+    { title: "Telefon", dataIndex: "phone", key: "phone" },
+    { title: "Miqdori", dataIndex: "amount", key: "amount" },
+    {
+      title: "Valyuta",
+      dataIndex: "currency",
+      key: "currency",
+      render: (text) => (text === "usd" ? "$" : "so'm"),
+    },
+    {
+      title: "Sana",
+      dataIndex: "date",
+      key: "date",
+      render: (text) => new Date(text).toLocaleString(),
+    },
+  ];
+
   const formatNumber = (num) => {
-    return new Intl.NumberFormat().format(Math.round(num));
+    return new Intl.NumberFormat().format(num);
   };
 
-  // Narxni formatlash funksiyasi (valyuta belgisi qo'shish)
   const formatPrice = (price, currency) => {
     const formatted = formatNumber(price);
     return `${formatted} ${currency === "sum" ? "so'm" : "$"}`;
   };
 
-  // Umumiy, haftalik va kunlik summalarni hisoblash
+  // Foyda/Zarar hisoblash funksiyasi
+  const calculateProfitLoss = (sale) => {
+    // Agar qarzdor to'lovi bo'lsa, foyda/zarar yo'q
+    if (sale.payment_method === "qarzdor_tolovi") {
+      return 0;
+    }
+
+    // Sotish narxi va tan narxi mavjudligini tekshirish
+    if (!sale.sell_price || !sale.buy_price) {
+      return 0;
+    }
+
+    const sellPrice = sale.sell_price * (sale.quantity || 1);
+    const buyPrice = sale.buy_price * (sale.quantity || 1);
+
+    return sellPrice - buyPrice;
+  };
+
   const calculateStats = (data, currency) => {
-    const filteredData =
+    const filteredByCurrency =
       data?.filter((item) => item.currency === currency) || [];
 
-    const total = filteredData.reduce((acc, sale) => acc + sale.total_price, 0);
-    const totalProfit = filteredData.reduce(
-      (acc, sale) => acc + Math.max(0, calculateProfit(sale)),
+    const total = filteredByCurrency.reduce(
+      (acc, sale) => acc + sale.total_price,
       0
     );
 
-    const weeklyData = filteredData.filter(
-      (sale) =>
-        new Date(sale.createdAt) >=
-        new Date(new Date().setDate(new Date().getDate() - 7))
-    );
-    const weekly = weeklyData.reduce((acc, sale) => acc + sale.total_price, 0);
-    const weeklyProfit = weeklyData.reduce(
-      (acc, sale) => acc + Math.max(0, calculateProfit(sale)),
-      0
-    );
+    const totalProfit = filteredByCurrency.reduce((acc, sale) => {
+      return acc + calculateProfitLoss(sale);
+    }, 0);
 
-    const dailyData = filteredData.filter(
-      (sale) =>
-        new Date(sale.createdAt).toLocaleDateString() ===
-        new Date().toLocaleDateString()
-    );
-    const daily = dailyData.reduce((acc, sale) => acc + sale.total_price, 0);
-    const dailyProfit = dailyData.reduce(
-      (acc, sale) => acc + Math.max(0, calculateProfit(sale)),
-      0
-    );
+    const weekly = filteredByCurrency
+      .filter(
+        (sale) =>
+          new Date(sale.createdAt) >=
+          new Date(new Date().setDate(new Date().getDate() - 7))
+      )
+      .reduce((acc, sale) => acc + sale.total_price, 0);
+
+    const weeklyProfit = filteredByCurrency
+      .filter(
+        (sale) =>
+          new Date(sale.createdAt) >=
+          new Date(new Date().setDate(new Date().getDate() - 7))
+      )
+      .reduce((acc, sale) => acc + calculateProfitLoss(sale), 0);
+
+    const daily = filteredByCurrency
+      .filter(
+        (sale) =>
+          new Date(sale.createdAt).toLocaleDateString() ===
+          new Date().toLocaleDateString()
+      )
+      .reduce((acc, sale) => acc + sale.total_price, 0);
+
+    const dailyProfit = filteredByCurrency
+      .filter(
+        (sale) =>
+          new Date(sale.createdAt).toLocaleDateString() ===
+          new Date().toLocaleDateString()
+      )
+      .reduce((acc, sale) => acc + calculateProfitLoss(sale), 0);
 
     return {
       total,
@@ -149,12 +193,10 @@ export default function SotuvTarix() {
   const sumStats = calculateStats(filteredSales, "sum");
   const usdStats = calculateStats(filteredSales, "usd");
 
-  // Dastlabki ma'lumotlarni to'ldirish
   useEffect(() => {
     setFilteredSales(sales || []);
   }, [sales]);
 
-  // Bir kunlik savdo tarixini ko'rsatish
   const showDailySales = () => {
     const today = new Date();
     const startOfDay = new Date(today.setHours(0, 0, 0, 0));
@@ -162,18 +204,27 @@ export default function SotuvTarix() {
     filterSales([startOfDay, endOfDay], paymentMethod, currency);
   };
 
-  // Jadval ustunlari
   const columns = [
     {
-      title: "Mahsulot nomi",
+      title: "Mahsulot / Qarzdor to'lovi",
       dataIndex: "product_name",
       key: "product_name",
+      render: (text, record) => {
+        if (record.payment_method === "qarzdor_tolovi") {
+          return (
+            <span style={{ fontStyle: "italic", color: "#1890ff" }}>
+              Qarzdor to'lovi - {record.client_name || "Noma'lum mijoz"}
+            </span>
+          );
+        }
+        return text;
+      },
     },
     {
       title: "Model",
       dataIndex: ["product_id", "model"],
       key: "model",
-      render: (text) => text || "-",
+      render: (text, record) => record.product_id?.model || "-",
     },
     {
       title: "Valyuta",
@@ -184,23 +235,64 @@ export default function SotuvTarix() {
       title: "Soni",
       dataIndex: "quantity",
       key: "quantity",
+      render: (text, record) =>
+        record.payment_method === "qarzdor_tolovi" ? "-" : text,
+    },
+    {
+      title: "Tan narxi",
+      dataIndex: "buy_price",
+      key: "buy_price",
+      render: (text, record) => {
+        if (record.payment_method === "qarzdor_tolovi" || !text) {
+          return "-";
+        }
+        const totalBuyPrice = text * (record.quantity || 1);
+        return formatPrice(totalBuyPrice, record.currency);
+      },
+    },
+    {
+      title: "Sotish narxi",
+      dataIndex: "sell_price",
+      key: "sell_price",
+      render: (text, record) => {
+        if (record.payment_method === "qarzdor_tolovi" || !text) {
+          return "-";
+        }
+        const totalSellPrice = text * (record.quantity || 1);
+        return formatPrice(totalSellPrice, record.currency);
+      },
     },
     {
       title: "Umumiy narxi",
       dataIndex: "total_price",
       key: "total_price",
-      render: (text, record) => formatPrice(text, record.currency),
+      render: (text, record) =>
+        record.payment_method === "qarzdor_tolovi" ? (
+          <span style={{ color: "green", fontWeight: "bold" }}>
+            {formatPrice(text, record.currency)}
+          </span>
+        ) : (
+          formatPrice(text, record.currency)
+        ),
     },
     {
-      title: "Foyda",
-      key: "profit",
+      title: "Foyda/Zarar",
+      key: "profit_loss",
       render: (text, record) => {
-        const profit = calculateProfit(record);
-        const profitColor = profit >= 0 ? "#52c41a" : "#ff4d4f";
+        const profitLoss = calculateProfitLoss(record);
+        if (profitLoss === 0) {
+          return "-";
+        }
+        const isProfit = profitLoss > 0;
         return (
-          <span style={{ color: profitColor, fontWeight: "bold" }}>
-            {formatPrice(Math.abs(profit), record.currency)}
-            {profit < 0 && " (zarar)"}
+          <span
+            style={{
+              color: isProfit ? "#52c41a" : "#ff4d4f",
+              fontWeight: "bold",
+            }}
+          >
+            {isProfit ? "+" : ""}
+            {formatPrice(Math.abs(profitLoss), record.currency)}
           </span>
         );
       },
@@ -215,6 +307,20 @@ export default function SotuvTarix() {
       dataIndex: "createdAt",
       key: "createdAt",
       render: (text) => new Date(text).toLocaleDateString(),
+    },
+    {
+      title: "Amallar",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (text, record) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span>{new Date(text).toLocaleDateString()}</span>
+
+          <Button type="link" danger style={{ padding: 0 }}>
+            O‘chirish
+          </Button>
+        </div>
+      ),
     },
   ];
 
@@ -234,6 +340,8 @@ export default function SotuvTarix() {
           <Option value="">Barchasi</Option>
           <Option value="naqd">Naqd</Option>
           <Option value="plastik">Karta</Option>
+          <Option value="qarz">Qarz</Option>
+          <Option value="qarzdor_tolovi">Qarzdor to'lovi</Option>
         </Select>
         <Select
           placeholder="Valyutani tanlang"
@@ -250,7 +358,7 @@ export default function SotuvTarix() {
         </Button>
       </div>
 
-      {/* Sotuv statistikalari */}
+      {/* Sotuvlar statistikasi */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}>
           <Statistic
@@ -272,37 +380,41 @@ export default function SotuvTarix() {
         </Col>
       </Row>
 
-      {/* Foyda statistikalari (So'm) */}
+      {/* Foyda/Zarar statistikasi (So'm) */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}>
           <Statistic
-            title="Umumiy foyda (so'm)"
-            value={formatPrice(sumStats.totalProfit, "sum")}
+            title="Umumiy foyda/zarar (so'm)"
+            value={formatPrice(Math.abs(sumStats.totalProfit), "sum")}
             valueStyle={{
-              color: sumStats.totalProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: sumStats.totalProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={sumStats.totalProfit >= 0 ? "+" : "-"}
           />
         </Col>
         <Col span={8}>
           <Statistic
-            title="Haftalik foyda (so'm)"
-            value={formatPrice(sumStats.weeklyProfit, "sum")}
+            title="Haftalik foyda/zarar (so'm)"
+            value={formatPrice(Math.abs(sumStats.weeklyProfit), "sum")}
             valueStyle={{
-              color: sumStats.weeklyProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: sumStats.weeklyProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={sumStats.weeklyProfit >= 0 ? "+" : "-"}
           />
         </Col>
         <Col span={8}>
           <Statistic
-            title="Kunlik foyda (so'm)"
-            value={formatPrice(sumStats.dailyProfit, "sum")}
+            title="Kunlik foyda/zarar (so'm)"
+            value={formatPrice(Math.abs(sumStats.dailyProfit), "sum")}
             valueStyle={{
-              color: sumStats.dailyProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: sumStats.dailyProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={sumStats.dailyProfit >= 0 ? "+" : "-"}
           />
         </Col>
       </Row>
 
+      {/* USD statistikasi */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}>
           <Statistic
@@ -324,33 +436,50 @@ export default function SotuvTarix() {
         </Col>
       </Row>
 
-      {/* Foyda statistikalari (USD) */}
+      {/* USD Foyda/Zarar statistikasi */}
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={8}>
           <Statistic
-            title="Umumiy foyda ($)"
-            value={formatPrice(usdStats.totalProfit, "usd")}
+            title="Umumiy foyda/zarar ($)"
+            value={formatPrice(Math.abs(usdStats.totalProfit), "usd")}
             valueStyle={{
-              color: usdStats.totalProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: usdStats.totalProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={usdStats.totalProfit >= 0 ? "+" : "-"}
           />
         </Col>
         <Col span={8}>
           <Statistic
-            title="Haftalik foyda ($)"
-            value={formatPrice(usdStats.weeklyProfit, "usd")}
+            title="Haftalik foyda/zarar ($)"
+            value={formatPrice(Math.abs(usdStats.weeklyProfit), "usd")}
             valueStyle={{
-              color: usdStats.weeklyProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: usdStats.weeklyProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={usdStats.weeklyProfit >= 0 ? "+" : "-"}
           />
         </Col>
         <Col span={8}>
           <Statistic
-            title="Kunlik foyda ($)"
-            value={formatPrice(usdStats.dailyProfit, "usd")}
+            title="Kunlik foyda/zarar ($)"
+            value={formatPrice(Math.abs(usdStats.dailyProfit), "usd")}
             valueStyle={{
-              color: usdStats.dailyProfit >= 0 ? "#52c41a" : "#ff4d4f",
+              color: usdStats.dailyProfit >= 0 ? "#3f8600" : "#cf1322",
             }}
+            prefix={usdStats.dailyProfit >= 0 ? "+" : "-"}
+          />
+        </Col>
+      </Row>
+      <Row gutter={16} style={{ marginBottom: 20 }}>
+        <Col span={12}>
+          <Statistic
+            title="Qarzdor to'lovlari (so'm)"
+            value={formatPrice(paymentSummary.sum, "sum")}
+          />
+        </Col>
+        <Col span={12}>
+          <Statistic
+            title="Qarzdor to'lovlari ($)"
+            value={formatPrice(paymentSummary.usd, "usd")}
           />
         </Col>
       </Row>
@@ -362,30 +491,14 @@ export default function SotuvTarix() {
         columns={columns}
         rowKey="_id"
         pagination={{ pageSize: 10 }}
-        summary={() => {
-          const totalProfit = filteredSales.reduce((sum, sale) => {
-            return sum + calculateProfit(sale);
-          }, 0);
+      />
 
-          return (
-            <Table.Summary.Row>
-              <Table.Summary.Cell colSpan={5} align="right">
-                <strong>Jami foyda:</strong>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell>
-                <strong
-                  style={{
-                    color: totalProfit >= 0 ? "#52c41a" : "#ff4d4f",
-                  }}
-                >
-                  {formatNumber(Math.abs(totalProfit))}
-                  {totalProfit < 0 && " (zarar)"}
-                </strong>
-              </Table.Summary.Cell>
-              <Table.Summary.Cell colSpan={2}></Table.Summary.Cell>
-            </Table.Summary.Row>
-          );
-        }}
+      <Table
+        title={() => "Qarzdor to'lovlari ro'yxati"}
+        dataSource={filteredPayments}
+        columns={paymentColumns}
+        rowKey={(record, index) => index}
+        pagination={{ pageSize: 5 }}
       />
     </Card>
   );

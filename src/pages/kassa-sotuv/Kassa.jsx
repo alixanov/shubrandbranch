@@ -51,7 +51,8 @@ import {
   useGetMastersQuery,
 } from "../../context/service/master.service";
 import MastersModal from "../../components/masters/MastersModal";
-import tgqr from "../../assets/tgt.png";
+import tg from "../../assets/in.png";
+import instagram from "../../assets/qr-code.png";
 const { Option } = Select;
 
 export default function Kassa() {
@@ -61,7 +62,7 @@ export default function Kassa() {
   const [paymentMethod, setPaymentMethod] = useState("naqd");
   const [debtorName, setDebtorName] = useState("");
   const [debtorPhone, setDebtorPhone] = useState("");
-  const [chekModal, setChekModal] = useState(false);
+  const [chekModal, setChekModal] = useState(true);
   const [qarzdorModalVisible, setQarzdorModalVisible] = useState(false);
   const [xarajatlarModalVisible, setXarajatlarModalVisible] = useState(false);
   const [vazvratModalVisible, setVazvratModalVisible] = useState(false);
@@ -368,10 +369,7 @@ export default function Kassa() {
             sale,
           }).unwrap();
         } else if (paymentMethod !== "qarz") {
-          const salePrice =
-            product.currency === "sum"
-              ? product.sell_price
-              : product.sell_price * usdRate;
+          // Bu yerda xatolik tuzatildi
           const sale = {
             product_id: product._id,
             product_name: product.product_name,
@@ -382,7 +380,7 @@ export default function Kassa() {
               currency === "usd"
                 ? baseSellPrice * product.quantity * usdRate
                 : baseSellPrice * product.quantity,
-            total_price: salePrice * product.quantity,
+            total_price: baseSellPrice * product.quantity, // Bu yerda tuzatildi
             payment_method: paymentMethod,
             product_quantity: product.quantity,
             debtor_name: null,
@@ -517,14 +515,14 @@ export default function Kassa() {
             <img src={logo} alt="" width={150} />
             {/* EUROPE GAZ */}
           </h1>
-          <div className="chek_item">
-            <img width={200} src={tgqr} alt="" />
-          </div>
-          {/* <p id="tgqr_p">
-            Телеграм каналимизга уланиш учун QR-кодни телефонингизда сканер
-            қилинг.
-            <img id="tgqr" src={tgqr} alt="" />
-          </p> */}
+          <div className="chek_item"></div>
+          <p id="tgqr_p" style={{display: "flex",
+             justifyContent: "space-around",
+              }}>
+         
+            <img id="tgqr" src={instagram} alt="" />
+            <img id="tgqr" src={tg} alt="" />
+          </p>
           <div className="chek_item">
             <b>
               Сана:{" "}
@@ -572,7 +570,7 @@ export default function Kassa() {
             </tbody>
             <p
               style={{
-                fontSize: "15px",
+                fontSize: "13px",
                 textAlign: "center",
                 fontWeight: "bold",
               }}
@@ -941,7 +939,7 @@ export default function Kassa() {
                 )?.quantity || 0,
             },
             // { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
-            { title: "Qutisi", dataIndex: "packing_type", key: "packing_type" },
+            { title: "Qutisi", dataIndex: "count_type", key: "count_type" },
             { title: "Izoh", dataIndex: "special_notes", key: "special_notes" },
             {
               title: "kimdan-kelgan",

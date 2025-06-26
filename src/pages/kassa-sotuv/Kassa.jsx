@@ -62,7 +62,7 @@ export default function Kassa() {
   const [paymentMethod, setPaymentMethod] = useState("naqd");
   const [debtorName, setDebtorName] = useState("");
   const [debtorPhone, setDebtorPhone] = useState("");
-  const [chekModal, setChekModal] = useState(true);
+  const [chekModal, setChekModal] = useState(false);
   const [qarzdorModalVisible, setQarzdorModalVisible] = useState(false);
   const [xarajatlarModalVisible, setXarajatlarModalVisible] = useState(false);
   const [vazvratModalVisible, setVazvratModalVisible] = useState(false);

@@ -34,6 +34,7 @@ export default function Qarzdor() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [form] = Form.useForm();
   const { data: usdRateData } = useGetUsdRateQuery();
+
   const formatNumber = (num, curr) => {
     const formatted = Number(num || 0).toLocaleString("uz-UZ");
     return curr === "usd" ? `${formatted} $` : `${formatted} so'm`;
@@ -50,46 +51,29 @@ export default function Qarzdor() {
     return correctedPrice(price, currency) * quantity;
   };
 
-  const handlePay = async (debtorId, productId) => {
-    const key = `${debtorId}_${productId}`;
-    const amount = Number(paymentAmounts[key]);
-
-    if (!amount || amount <= 0) {
-      message.error("To'g'ri summa kiriting");
-      return;
-    }
-
-    try {
-      await updateDebtor({
-        id: debtorId,
-        paid_amount: amount,
-        product_id: productId,
-      }).unwrap();
-      message.success("To‘lov saqlandi");
-      setPaymentAmounts((prev) => ({ ...prev, [key]: "" }));
-      refetch();
-    } catch (err) {
-      message.error("Xatolik: " + err?.data?.message);
-    }
-  };
-
   const handleReturn = async (debtorId, productId, index) => {
     const key = `${debtorId}_${productId}_${index}`;
-    const quantity = Number(returnQuantities[key]);
+    const quantityStr = returnQuantities[key];
 
-    if (!quantity || quantity <= 0) {
+    if (
+      !quantityStr ||
+      isNaN(Number(quantityStr)) ||
+      Number(quantityStr) <= 0
+    ) {
       message.error("Qaytariladigan miqdor noto‘g‘ri");
       return;
     }
+
+    const quantity = Number(quantityStr);
 
     try {
       await returnProduct({
         id: debtorId,
         product_id: productId,
-        quantity,
+        quantity: quantity,
       }).unwrap();
+
       message.success("Qaytarildi");
-      setReturnQuantities((prev) => ({ ...prev, [key]: "" }));
       setReturnQuantities((prev) => ({ ...prev, [key]: "" }));
       setModalOpen(false);
       setSelectedDebtor(null);
@@ -111,14 +95,11 @@ export default function Qarzdor() {
       render: (_, record) => {
         const rate = Number(usdRateData?.rate || 1);
         const amount = Number(record.debt_amount || 0);
-    
         const isUsd = record.currency === "usd";
         const total = isUsd ? amount * rate : amount;
-    
         return `${total.toLocaleString("uz-UZ")} so'm`;
       },
     },
-    
     {
       title: "Amallar",
       render: (_, record) => (
@@ -174,62 +155,6 @@ export default function Qarzdor() {
       />
 
       <Modal
-        open={paymentModalOpen}
-        title={`To‘lov - ${paymentDebtor?.name}`}
-        onCancel={() => {
-          setPaymentModalOpen(false);
-          setPaymentDebtor(null);
-          form.resetFields();
-        }}
-        okText="To‘lash"
-        footer={null}
-      >
-        <Form
-          onFinish={async (values) => {
-            try {
-              values.rate = usdRateData?.rate || 1;
-              values.id = paymentDebtor;
-              values.amount = Number(values.amount);
-              await createPayment(values).unwrap();
-              values.payment_method = "qarzdor_tolovi";
-              message.success("To‘lov amalga oshirildi");
-              setPaymentModalOpen(false);
-              form.resetFields();
-            } catch (err) {
-              message.error("Xatolik: " + err?.data?.message);
-            }
-          }}
-          form={form}
-          layout="vertical"
-        >
-          <Form.Item
-            label="To‘lov summasi"
-            name="amount"
-            rules={[{ required: true, message: "Summani kiriting" }]}
-          >
-            <Input type="number" min={1} />
-          </Form.Item>
-
-          <Form.Item
-            label="Valyuta"
-            name="currency"
-            rules={[{ required: true, message: "Valyutani tanlang" }]}
-            initialValue="usd"
-          >
-            <Select>
-              <Select.Option value="usd">USD</Select.Option>
-              <Select.Option value="sum">So‘m</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit">
-              To‘lash
-            </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal
         open={modalOpen}
         title={`${selectedDebtor?.name} - mahsulotlar ro'yxati`}
         onCancel={() => setModalOpen(false)}
@@ -240,12 +165,12 @@ export default function Qarzdor() {
           const productId = product.product_id?._id || product.product_id;
           const key = `${selectedDebtor._id}_${productId}_${index}`;
 
-          const isSumCurrency = selectedDebtor.currency === "sum";
-          const usdRate = usdRateData.rate;
-
+          const usdRate = Number(usdRateData?.rate || 1);
+          const isUsdCurrency =
+            product.currency === "usd" || selectedDebtor.currency === "usd";
           const originalPrice = Number(product.sell_price || 0);
           const quantity = Number(product.product_quantity || 1);
-          const convertedPrice = isSumCurrency
+          const convertedPrice = isUsdCurrency
             ? originalPrice * usdRate
             : originalPrice;
           const total = convertedPrice * quantity;
@@ -264,16 +189,10 @@ export default function Qarzdor() {
                 <b>Soni:</b> {quantity}
               </p>
               <p>
-                <b>Narxi:</b>{" "}
-                {isSumCurrency
-                  ? `${convertedPrice.toLocaleString("uz-UZ")} so'm`
-                  : `${convertedPrice.toLocaleString("uz-UZ")} $`}
+                <b>Narxi:</b> {convertedPrice.toLocaleString("uz-UZ")} so'm
               </p>
               <p>
-                <b>Qarz:</b>{" "}
-                {isSumCurrency
-                  ? `${total.toLocaleString("uz-UZ")} so'm`
-                  : `${total.toLocaleString("uz-UZ")} $`}
+                <b>Qarz:</b> {total.toLocaleString("uz-UZ")} so'm
               </p>
               <p>
                 <b>Sotish vaqti:</b>{" "}
@@ -290,13 +209,16 @@ export default function Qarzdor() {
               <Input
                 placeholder="Qaytariladigan soni"
                 value={returnQuantities[key] || ""}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setReturnQuantities((prev) => ({
                     ...prev,
-                    [key]: e.target.value,
-                  }))
-                }
+                    [key]: val === "" ? "" : Number(val),
+                  }));
+                }}
                 style={{ width: 150, marginRight: 8 }}
+                type="number"
+                min={1}
               />
               <Button
                 danger
@@ -313,3 +235,4 @@ export default function Qarzdor() {
     </>
   );
 }
+ 

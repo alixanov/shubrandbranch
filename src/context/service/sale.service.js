@@ -25,6 +25,13 @@ export const saleApi = apiSlice.injectEndpoints({
       }),
       providesTags: ["Sales", "Debtor"],
     }),
+    deleteSale: builder.mutation({
+      query: (id) => ({
+        url: `/sales/${id}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Sales", "Debtor"],
+    }),
   }),
 });
 
@@ -32,4 +39,5 @@ export const {
   useRecordSaleMutation,
   useGetSalesHistoryQuery,
   useGetSalesStatsQuery,
+  useDeleteSaleMutation, // ✅ DELETE hook'ini export qilamiz
 } = saleApi;

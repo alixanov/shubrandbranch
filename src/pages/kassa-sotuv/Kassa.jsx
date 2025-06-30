@@ -36,7 +36,6 @@ import moment from "moment-timezone";
 import Vazvrat from "../vazvrat/Vazvrat";
 import logo from "../../assets/logo.png";
 import { debounce } from "lodash";
-
 import SotuvTarix from "../sotuv-tarix/Sotuv_tarix";
 import {
   useCompleteNasiyaMutation,
@@ -68,20 +67,16 @@ export default function Kassa() {
   const [vazvratModalVisible, setVazvratModalVisible] = useState(false);
   const receiptRef = useRef();
   const [debtDueDate, setDebtDueDate] = useState(null);
-  console.log("Debt Due Date:", debtDueDate);
-
   const {
     data: products,
     isLoading,
     refetch: productRefetch,
   } = useGetAllProductsQuery();
-
   const { data: storeProducts, refetch: storeRefetch } =
     useGetStoreProductsQuery();
   const { data: usdRateData } = useGetUsdRateQuery();
   const [updateProduct] = useUpdateProductMutation();
   const [recordSale] = useRecordSaleMutation();
-
   const [sellProductFromStore] = useSellProductFromStoreMutation();
   const [createMaster] = useCreateMasterMutation();
   const { data: masters = [] } = useGetMastersQuery();
@@ -120,48 +115,38 @@ export default function Kassa() {
 
   const usdRate = usdRateData?.rate || 1;
 
-  const filteredProducts = searchTerm
-    ? products?.filter((product) => {
-        const searchWords = searchTerm.toLowerCase().split(" ");
-        const fields = [
-          product.product_name?.toLowerCase() || "",
-          product.barcode?.toLowerCase() || "",
-          product.product_category?.toLowerCase() || "",
-          product.model?.toLowerCase() || "",
-          product.brand_name?.toLowerCase() || "",
-        ];
-
-        // Faqat qidiruv so'zlariga mos kelgan mahsulotlarni qaytarish
-        const matchesSearch = searchWords.every((word) =>
-          fields.some((field) => field.includes(word))
-        );
-
-        // Ixtiyoriy: Faqat dokonda mavjud mahsulotlarni ko'rsatish
-        const storeProduct = storeProducts?.find(
-          (item) => item.product_id?._id === product._id
-        );
-        const hasStoreStock = (storeProduct?.quantity || 0) > 0;
-
-        return matchesSearch && hasStoreStock;
-      })
-    : [];
+  const filteredProducts =
+    products?.filter((product) => {
+      if (!searchTerm) return true; // Agar qidiruv so'zi bo'lmasa, barcha mahsulotlarni ko'rsat
+      const searchWords = searchTerm.toLowerCase().split(" ");
+      const fields = [
+        product.product_name?.toLowerCase() || "",
+        product.barcode?.toLowerCase() || "",
+        product.product_category?.toLowerCase() || "",
+        product.model?.toLowerCase() || "",
+        product.brand_name?.toLowerCase() || "",
+      ];
+      const matchesSearch = searchWords.every((word) =>
+        fields.some((field) => field.includes(word))
+      );
+      const storeProduct = storeProducts?.find(
+        (item) => item.product_id?._id === product._id
+      );
+      const hasStoreStock = (storeProduct?.quantity || 0) > 0;
+      return matchesSearch && hasStoreStock;
+    }) || [];
 
   const handleSelectProduct = (product) => {
-    // Dokondagi mahsulot miqdorini tekshirish
     const storeProduct = storeProducts?.find(
       (item) => item.product_id?._id === product._id
     );
-
     const storeQuantity = storeProduct?.quantity || 0;
-
-    // Agar dokonda mahsulot yo'q bo'lsa ogohlantirish
     if (storeQuantity === 0) {
       message.warning(
         `${product.product_name} mahsuloti dokonda mavjud emas! (Miqdor: 0)`
       );
       return;
     }
-
     const exists = selectedProducts?.find((item) => item._id === product._id);
     if (!exists) {
       setSelectedProducts([
@@ -177,7 +162,7 @@ export default function Kassa() {
               : product.currency === "sum" && currency === "usd"
               ? product.sell_price / usdRate
               : product.sell_price,
-          currency, // Store the currency used when selecting the product
+          currency,
         },
       ]);
       setSearchTerm("");
@@ -185,6 +170,7 @@ export default function Kassa() {
       message.info("Bu mahsulot allaqachon tanlangan");
     }
   };
+
   const handleRemoveProduct = (productId) => {
     const updatedProducts = selectedProducts.filter(
       (item) => item._id !== productId
@@ -200,7 +186,6 @@ export default function Kassa() {
         const newQuantity = parseFloat(
           (item.quantity + increment * step).toFixed(2)
         );
-
         return {
           ...item,
           quantity: newQuantity >= step ? newQuantity : step,
@@ -264,10 +249,8 @@ export default function Kassa() {
 
   const handleSellProducts = async () => {
     setChekModal(true);
-
     try {
       const debtorProducts = [];
-
       let masterId = selectedMasterId;
       if (masterId === "new" && newMasterName?.trim()) {
         const { result } = await createMaster({
@@ -275,7 +258,6 @@ export default function Kassa() {
         }).unwrap();
         masterId = result._id;
       }
-
       let carId = null;
       const currentMaster = masters.find((m) => m._id === masterId);
       if (paymentMethod === "master") {
@@ -292,7 +274,6 @@ export default function Kassa() {
           carId = car?._id;
         }
       }
-
       for (const product of selectedProducts) {
         const sellPrice =
           product.currency === currency
@@ -302,7 +283,6 @@ export default function Kassa() {
             : product.currency === "sum" && currency === "usd"
             ? product.sell_price / usdRate
             : product.sell_price;
-
         const buyPrice =
           product.currency === currency
             ? product.purchase_price
@@ -311,8 +291,6 @@ export default function Kassa() {
             : product.currency === "sum" && currency === "usd"
             ? product.purchase_price / usdRate
             : product.purchase_price;
-
-        // Omborni tekshirish va yangilash
         if (location === "skalad") {
           if (product.stock < product.quantity) {
             return message.error(
@@ -324,7 +302,6 @@ export default function Kassa() {
             stock: product.stock - product.quantity,
           }).unwrap();
         }
-
         if (location === "dokon") {
           const storeProduct = storeProducts?.find(
             (p) => p.product_id?._id === product._id
@@ -339,12 +316,11 @@ export default function Kassa() {
             quantity: product.quantity,
           }).unwrap();
         }
-
         const commonSaleData = {
           product_id: product._id,
           product_name: product.product_name,
           sell_price: sellPrice,
-          buy_price: buyPrice, // ✅ konvertatsiya qilingan qiymat
+          buy_price: buyPrice,
           currency,
           quantity: product.quantity,
           total_price: sellPrice * product.quantity,
@@ -353,7 +329,6 @@ export default function Kassa() {
               ? sellPrice * product.quantity * usdRate
               : sellPrice * product.quantity,
         };
-
         if (paymentMethod === "master") {
           if (!masterId || !carId) {
             return message.error("Usta yoki mashina aniqlanmadi");
@@ -378,13 +353,11 @@ export default function Kassa() {
           }).unwrap();
         }
       }
-
       if (paymentMethod === "qarz") {
         const totalDebt = debtorProducts.reduce(
           (acc, p) => acc + p.sell_price * p.quantity,
           0
         );
-
         if (!selectedDebtor) {
           await createDebtor({
             name: debtorName?.trim(),
@@ -397,13 +370,11 @@ export default function Kassa() {
         } else {
           const debtor = debtors.find((d) => d._id === selectedDebtor);
           if (!debtor) return message.error("Tanlangan qarzdor topilmadi");
-
           const updatedDebt = totalDebt + (debtor.debt_amount || 0);
           const updatedProducts = [
             ...(debtor.products || []),
             ...debtorProducts,
           ];
-
           await editDebtor({
             id: selectedDebtor,
             body: {
@@ -414,7 +385,6 @@ export default function Kassa() {
           }).unwrap();
         }
       }
-
       message.success("Mahsulotlar muvaffaqiyatli sotildi!");
       setIsModalVisible(false);
     } catch (error) {
@@ -482,7 +452,6 @@ export default function Kassa() {
             }}
           >
             <img src={logo} alt="" width={150} />
-            {/* EUROPE GAZ */}
           </h1>
           <div className="chek_item"></div>
           <p
@@ -548,10 +517,6 @@ export default function Kassa() {
               <span>+998 90 790 42 32</span> <br />
             </p>
           </table>
-          {/* <h1 style={{ textAlign: "center" }}>
-            Bizda yetkazib berish xizmati mavjud: Bahromjon{" "}
-            <span>+99891 367 70 80</span> <br />
-          </h1> */}
         </div>
       </Modal>
 
@@ -612,7 +577,6 @@ export default function Kassa() {
             e.preventDefault();
             const name = e.target.name.value;
             const location = e.target.location.value;
-
             if (!name) {
               message.error("Ismni to'ldiring!");
               return;
@@ -843,13 +807,12 @@ export default function Kassa() {
           size="large"
         />
         <Table
-          dataSource={filteredProducts}
+          dataSource={filteredProducts} // Barcha mahsulotlarni ko'rsatish uchun filteredProducts ishlatiladi
           loading={isLoading}
           style={{ width: "100%" }}
           columns={[
             { title: "Brend", dataIndex: "brand_name", key: "brand_name" },
             { title: "Modeli", dataIndex: "model", key: "model" },
-
             {
               title: "Mahsulot nomi",
               dataIndex: "product_name",
@@ -897,7 +860,6 @@ export default function Kassa() {
                 </span>
               ),
             },
-
             {
               title: "Dokon Miqdori",
               dataIndex: "quantity",
@@ -907,7 +869,6 @@ export default function Kassa() {
                   (product) => product.product_id?._id === record._id
                 )?.quantity || 0,
             },
-            // { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
             { title: "Qutisi", dataIndex: "count_type", key: "count_type" },
             { title: "Izoh", dataIndex: "special_notes", key: "special_notes" },
             {
@@ -951,7 +912,6 @@ export default function Kassa() {
                   dataIndex: "product_name",
                   key: "product_name",
                 },
-
                 {
                   title: (
                     <span>
@@ -986,7 +946,6 @@ export default function Kassa() {
                   },
                 },
                 { title: "Miqdori", dataIndex: "quantity", key: "quantity" },
-                // { title: "Shtrix kod", dataIndex: "barcode", key: "barcode" },
                 {
                   title: "Soni",
                   key: "quantity",
@@ -1007,7 +966,6 @@ export default function Kassa() {
                       >
                         -
                       </Button>
-
                       {["litr", "sm"].includes(record.count_type) ? (
                         <input
                           type="number"
@@ -1033,7 +991,6 @@ export default function Kassa() {
                     </div>
                   ),
                 },
-
                 {
                   title: "Harakatlar",
                   key: "actions",
@@ -1171,7 +1128,6 @@ export default function Kassa() {
                     ))}
                   </Select>
                 </Form.Item>
-
                 {selectedMasterId === "new" && (
                   <Form.Item label="Yangi ustaning ismi">
                     <AntdInput
@@ -1180,7 +1136,6 @@ export default function Kassa() {
                     />
                   </Form.Item>
                 )}
-
                 {selectedMasterId && selectedMasterId !== "new" && (
                   <Form.Item label="Mashinasini tanlang">
                     <Select
@@ -1204,7 +1159,6 @@ export default function Kassa() {
                     </Select>
                   </Form.Item>
                 )}
-
                 {selectedCarName === "new" && (
                   <Form.Item label="Yangi mashina nomi">
                     <AntdInput

@@ -9,10 +9,14 @@ import {
   Col,
   Button,
 } from "antd";
-import { useGetSalesHistoryQuery } from "../../context/service/sale.service";
+import {
+  useGetSalesHistoryQuery,
+  useDeleteSaleMutation,
+} from "../../context/service/sale.service";
 // import { useGetUsdRateQuery } from "../../context/service/usd.service";
 import { useGetDebtorsQuery } from "../../context/service/debtor.service";
 import { useGetUsdRateQuery } from "../../context/service/usd.service";
+import { Popconfirm, message } from "antd";
 const { RangePicker } = DatePicker;
 const { Option } = Select;
 export default function SotuvTarix() {
@@ -23,9 +27,10 @@ export default function SotuvTarix() {
   const [selectedDateRange, setSelectedDateRange] = useState([null, null]);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [currency, setCurrency] = useState("");
+  const [deleteSale, { isLoading: isDeleting }] = useDeleteSaleMutation();
   const [filteredPayments, setFilteredPayments] = useState([]);
-    const { data: usdRate, isLoading: usdLoading } = useGetUsdRateQuery();
-    const USD_RATE = usdRate?.rate || 12650;
+  const { data: usdRate, isLoading: usdLoading } = useGetUsdRateQuery();
+  const USD_RATE = usdRate?.rate || 12650;
 
   const onDateChange = (dates) => {
     setSelectedDateRange(dates);
@@ -81,6 +86,13 @@ export default function SotuvTarix() {
     }
   };
 
+  const handleDelete = async (id) => {
+    try {
+      await deleteSale(id).unwrap();
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const paymentSummary = useMemo(() => {
     const sum = filteredPayments
       .filter((p) => p.currency === "sum")
@@ -141,7 +153,6 @@ export default function SotuvTarix() {
 
     return sellPrice - buyPrice;
   };
-  
 
   const calculateStats = (data, currency) => {
     const filteredByCurrency =
@@ -307,15 +318,27 @@ export default function SotuvTarix() {
     },
     {
       title: "Amallar",
-      dataIndex: "createdAt",
-      key: "createdAt",
+      key: "actions",
       render: (text, record) => (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span>{new Date(text).toLocaleDateString()}</span>
-
-          <Button type="link" danger style={{ padding: 0 }}>
-            O‘chirish
-          </Button>
+          <span>{new Date(record.createdAt).toLocaleDateString()}</span>
+          {record.payment_method !== "qarzdor_tolovi" && (
+            <Popconfirm
+              title="Haqiqatan ham o‘chirmoqchimisiz?"
+              onConfirm={() => handleDelete(record._id)}
+              okText="Ha"
+              cancelText="Yo‘q"
+            >
+              <Button
+                type="link"
+                danger
+                loading={isDeleting}
+                style={{ padding: 0 }}
+              >
+                O‘chirish
+              </Button>
+            </Popconfirm>
+          )}
         </div>
       ),
     },

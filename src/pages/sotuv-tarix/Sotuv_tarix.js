@@ -12,10 +12,9 @@ import {
 import { useGetSalesHistoryQuery } from "../../context/service/sale.service";
 // import { useGetUsdRateQuery } from "../../context/service/usd.service";
 import { useGetDebtorsQuery } from "../../context/service/debtor.service";
-
+import { useGetUsdRateQuery } from "../../context/service/usd.service";
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
 export default function SotuvTarix() {
   const { data: sales, isLoading } = useGetSalesHistoryQuery();
   // const { data: usdRateData } = useGetUsdRateQuery();
@@ -25,6 +24,8 @@ export default function SotuvTarix() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [currency, setCurrency] = useState("");
   const [filteredPayments, setFilteredPayments] = useState([]);
+    const { data: usdRate, isLoading: usdLoading } = useGetUsdRateQuery();
+    const USD_RATE = usdRate?.rate || 12650;
 
   const onDateChange = (dates) => {
     setSelectedDateRange(dates);
@@ -119,21 +120,28 @@ export default function SotuvTarix() {
 
   // Foyda/Zarar hisoblash funksiyasi
   const calculateProfitLoss = (sale) => {
-    // Agar qarzdor to'lovi bo'lsa, foyda/zarar yo'q
-    if (sale.payment_method === "qarzdor_tolovi") {
-      return 0;
-    }
+    if (sale.payment_method === "qarzdor_tolovi") return 0;
 
-    // Sotish narxi va tan narxi mavjudligini tekshirish
-    if (!sale.sell_price || !sale.buy_price) {
-      return 0;
-    }
+    if (!sale.sell_price || !sale.buy_price) return 0;
 
-    const sellPrice = sale.sell_price * (sale.quantity || 1);
-    const buyPrice = sale.buy_price * (sale.quantity || 1);
+    const quantity = sale.quantity || 1;
+
+    const sellPrice = sale.sell_price * quantity;
+    let buyPrice = sale.buy_price * quantity;
+
+    // Mahsulot asl valyutasini aniqlaymiz
+    const productCurrency = sale.product_id?.currency || sale.currency;
+
+    // Kursga qarab buy_price ni konvertatsiya qilamiz
+    if (productCurrency === "usd" && sale.currency === "sum") {
+      buyPrice *= USD_RATE;
+    } else if (productCurrency === "sum" && sale.currency === "usd") {
+      buyPrice /= USD_RATE;
+    }
 
     return sellPrice - buyPrice;
   };
+  
 
   const calculateStats = (data, currency) => {
     const filteredByCurrency =
@@ -250,18 +258,7 @@ export default function SotuvTarix() {
         return formatPrice(totalBuyPrice, record.currency);
       },
     },
-    {
-      title: "Sotish narxi",
-      dataIndex: "sell_price",
-      key: "sell_price",
-      render: (text, record) => {
-        if (record.payment_method === "qarzdor_tolovi" || !text) {
-          return "-";
-        }
-        const totalSellPrice = text * (record.quantity || 1);
-        return formatPrice(totalSellPrice, record.currency);
-      },
-    },
+
     {
       title: "Umumiy narxi",
       dataIndex: "total_price",

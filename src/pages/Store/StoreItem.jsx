@@ -307,7 +307,7 @@ export default function StoreItem() {
               </div>
               <QRCodeSVG
                 style={{
-                  transform: "translateX(-10px)"
+                  transform: "translateX(-10px)",
                 }}
                 value={printData.barcode}
                 size={60}
@@ -345,9 +345,11 @@ export default function StoreItem() {
               border: "1px solid #ccc",
             }}
             type="number"
+            step="0.01" // bu qadamni aniqlaydi: 0.01 -> onliklar qo‘llab-quvvatlanadi
             {...register("quantity")}
             placeholder="Mahsulot soni"
           />
+
           <button
             style={{
               background: "#000",

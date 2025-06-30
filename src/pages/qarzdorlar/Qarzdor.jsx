@@ -108,12 +108,17 @@ export default function Qarzdor() {
     },
     {
       title: "Jami qarz",
-      dataIndex: "debt_amount",
-      render: (text) => {
-        const formatted = (text * (usdRateData?.rate || 1)).toLocaleString();
-        return formatted;
+      render: (_, record) => {
+        const rate = Number(usdRateData?.rate || 1);
+        const amount = Number(record.debt_amount || 0);
+    
+        const isUsd = record.currency === "usd";
+        const total = isUsd ? amount * rate : amount;
+    
+        return `${total.toLocaleString("uz-UZ")} so'm`;
       },
     },
+    
     {
       title: "Amallar",
       render: (_, record) => (

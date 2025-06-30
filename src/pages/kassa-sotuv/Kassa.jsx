@@ -81,6 +81,7 @@ export default function Kassa() {
   const { data: usdRateData } = useGetUsdRateQuery();
   const [updateProduct] = useUpdateProductMutation();
   const [recordSale] = useRecordSaleMutation();
+
   const [sellProductFromStore] = useSellProductFromStoreMutation();
   const [createMaster] = useCreateMasterMutation();
   const { data: masters = [] } = useGetMastersQuery();
@@ -263,37 +264,27 @@ export default function Kassa() {
 
   const handleSellProducts = async () => {
     setChekModal(true);
+
     try {
       const debtorProducts = [];
 
       let masterId = selectedMasterId;
-      console.log(selectedMasterId);
-      console.log(newMasterName);
-
-      if (selectedMasterId === "new" && newMasterName?.trim()) {
-        const masterRes = await createMaster({
+      if (masterId === "new" && newMasterName?.trim()) {
+        const { result } = await createMaster({
           master_name: newMasterName,
         }).unwrap();
-        console.log(masterRes);
-
-        masterId = masterRes.result._id;
+        masterId = result._id;
       }
 
       let carId = null;
-      const currentMaster = masters?.find((m) => m._id === masterId);
-      console.log(masterId);
-      console.log(selectedCarName);
-      console.log(newCarName);
-
+      const currentMaster = masters.find((m) => m._id === masterId);
       if (paymentMethod === "master") {
         if (masterId && selectedCarName === "new" && newCarName?.trim()) {
-          const carRes = await createCarToMaster({
+          const { car } = await createCarToMaster({
             master_id: masterId,
             car: { car_name: newCarName },
           }).unwrap();
-          console.log(carRes);
-
-          carId = carRes.car._id;
+          carId = car._id;
         } else if (masterId && selectedCarName) {
           const car = currentMaster?.cars?.find(
             (c) => c.car_name === selectedCarName
@@ -303,7 +294,7 @@ export default function Kassa() {
       }
 
       for (const product of selectedProducts) {
-        const baseSellPrice =
+        const sellPrice =
           product.currency === currency
             ? product.sell_price
             : product.currency === "usd" && currency === "sum"
@@ -312,133 +303,111 @@ export default function Kassa() {
             ? product.sell_price / usdRate
             : product.sell_price;
 
+        const buyPrice =
+          product.currency === currency
+            ? product.purchase_price
+            : product.currency === "usd" && currency === "sum"
+            ? product.purchase_price * usdRate
+            : product.currency === "sum" && currency === "usd"
+            ? product.purchase_price / usdRate
+            : product.purchase_price;
+
+        // Omborni tekshirish va yangilash
         if (location === "skalad") {
           if (product.stock < product.quantity) {
-            message.error(
+            return message.error(
               `${product.product_name} mahsuloti skaladda yetarli emas!`
             );
-            return;
           }
-          const newStock = product.stock - product.quantity;
-          await updateProduct({ id: product._id, stock: newStock }).unwrap();
-        } else if (location === "dokon") {
+          await updateProduct({
+            id: product._id,
+            stock: product.stock - product.quantity,
+          }).unwrap();
+        }
+
+        if (location === "dokon") {
           const storeProduct = storeProducts?.find(
             (p) => p.product_id?._id === product._id
           );
-          if (!storeProduct) {
-            message.error(
-              `${product.product_name} mahsuloti dokonda mavjud emas!`
-            );
-            return;
-          }
-          if (storeProduct.quantity < product.quantity) {
-            message.error(
+          if (!storeProduct || storeProduct.quantity < product.quantity) {
+            return message.error(
               `${product.product_name} mahsuloti dokonda yetarli emas!`
             );
-            return;
           }
           await sellProductFromStore({
-            product_id: storeProduct.product_id._id,
+            product_id: product._id,
             quantity: product.quantity,
           }).unwrap();
         }
 
+        const commonSaleData = {
+          product_id: product._id,
+          product_name: product.product_name,
+          sell_price: sellPrice,
+          buy_price: buyPrice, // ✅ konvertatsiya qilingan qiymat
+          currency,
+          quantity: product.quantity,
+          total_price: sellPrice * product.quantity,
+          total_price_sum:
+            currency === "usd"
+              ? sellPrice * product.quantity * usdRate
+              : sellPrice * product.quantity,
+        };
+
         if (paymentMethod === "master") {
           if (!masterId || !carId) {
-            message.error("Usta yoki mashina aniqlanmadi");
-            return;
+            return message.error("Usta yoki mashina aniqlanmadi");
           }
-
-          const sale = {
-            product_id: product._id,
-            product_name: product.product_name,
-            sell_price: baseSellPrice,
-            buy_price: product.purchase_price,
-            currency: currency,
-            quantity: product.quantity,
-            total_price: baseSellPrice * product.quantity,
-            total_price_sum:
-              currency === "usd"
-                ? baseSellPrice * product.quantity * usdRate
-                : baseSellPrice * product.quantity,
-          };
-
           await createSaleToCar({
             master_id: masterId,
             car_id: carId,
-            sale,
+            sale: commonSaleData,
           }).unwrap();
-        } else if (paymentMethod !== "qarz") {
-          // Bu yerda xatolik tuzatildi
-          const sale = {
-            product_id: product._id,
-            product_name: product.product_name,
-            sell_price: baseSellPrice,
-            quantity: product.quantity,
-            currency,
-            total_price_sum:
-              currency === "usd"
-                ? baseSellPrice * product.quantity * usdRate
-                : baseSellPrice * product.quantity,
-            total_price: baseSellPrice * product.quantity, // Bu yerda tuzatildi
+        } else if (paymentMethod === "qarz") {
+          debtorProducts.push({
+            ...commonSaleData,
+            due_date: debtDueDate,
+          });
+        } else {
+          await recordSale({
+            ...commonSaleData,
             payment_method: paymentMethod,
-            product_quantity: product.quantity,
             debtor_name: null,
             debtor_phone: null,
             due_date: null,
-          };
-          await recordSale(sale).unwrap();
-        } else {
-          debtorProducts.push({
-            product_id: product._id,
-            product_name: product.product_name,
-            product_quantity: product.quantity,
-            sell_price: baseSellPrice,
-            due_date: debtDueDate,
-            currency,
-          });
+          }).unwrap();
         }
       }
 
       if (paymentMethod === "qarz") {
-        console.log(debtorProducts);
-
         const totalDebt = debtorProducts.reduce(
-          (acc, p) => acc + p.sell_price * p.product_quantity,
+          (acc, p) => acc + p.sell_price * p.quantity,
           0
         );
-        console.log(totalDebt);
 
         if (!selectedDebtor) {
-          const debtorPayload = {
+          await createDebtor({
             name: debtorName?.trim(),
             phone: debtorPhone?.trim(),
             due_date: debtDueDate,
             currency,
             debt_amount: totalDebt,
             products: debtorProducts,
-          };
-          await createDebtor(debtorPayload).unwrap();
+          }).unwrap();
         } else {
           const debtor = debtors.find((d) => d._id === selectedDebtor);
-          if (!debtor) {
-            message.error("Tanlangan qarzdor topilmadi");
-            return;
-          }
-          const updatedDebtAmount =
-            (debtor.debt_amount || 0) +
-            debtorProducts.reduce(
-              (acc, p) => acc + p.sell_price * p.product_quantity,
-              0
-            );
+          if (!debtor) return message.error("Tanlangan qarzdor topilmadi");
+
+          const updatedDebt = totalDebt + (debtor.debt_amount || 0);
           const updatedProducts = [
             ...(debtor.products || []),
             ...debtorProducts,
           ];
+
           await editDebtor({
             id: selectedDebtor,
             body: {
-              debt_amount: updatedDebtAmount,
+              debt_amount: updatedDebt,
               due_date: debtDueDate,
               products: updatedProducts,
             },
@@ -446,16 +415,16 @@ export default function Kassa() {
         }
       }
 
-      // setSelectedProducts([]);
       message.success("Mahsulotlar muvaffaqiyatli sotildi!");
       setIsModalVisible(false);
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Xatolik:", error);
       message.error(
-        `Xatolik: ${error.data?.message || "Serverga ulanishda xatolik"}`
+        `Xatolik: ${error.data?.message || "Serverga ulanishda muammo"}`
       );
     }
   };
+
   const convertPrice = (price, fromCurrency, toCurrency) => {
     if (fromCurrency === toCurrency) return price;
     if (fromCurrency === "usd" && toCurrency === "sum") return price * usdRate;
@@ -516,10 +485,10 @@ export default function Kassa() {
             {/* EUROPE GAZ */}
           </h1>
           <div className="chek_item"></div>
-          <p id="tgqr_p" style={{display: "flex",
-             justifyContent: "space-around",
-              }}>
-         
+          <p
+            id="tgqr_p"
+            style={{ display: "flex", justifyContent: "space-around" }}
+          >
             <img id="tgqr" src={instagram} alt="" />
             <img id="tgqr" src={tg} alt="" />
           </p>
@@ -814,35 +783,35 @@ export default function Kassa() {
         <Button
           type="primary"
           onClick={() => setQarzdorModalVisible(true)}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 10, width: "95%", height: "50px" }}
         >
           Qarzdorlar
         </Button>
         <Button
           type="primary"
           onClick={() => setXarajatlarModalVisible(true)}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 10, width: "95%", height: "50px" }}
         >
           Xarajatlar
         </Button>
         <Button
           type="primary"
           onClick={() => setVazvratModalVisible(true)}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 10, width: "95%", height: "50px" }}
         >
           Vazvrat tavarlar
         </Button>
         <Button
           type="primary"
           onClick={() => setSotuvtarixiModalVisible(true)}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 10, width: "95%", height: "50px" }}
         >
           Sotuv Tarixi
         </Button>
         <Button
           type="primary"
           onClick={() => setMasterModal(true)}
-          style={{ marginRight: 10 }}
+          style={{ marginRight: 10, width: "95%", height: "50px" }}
         >
           Ustalar
         </Button>
@@ -1246,16 +1215,8 @@ export default function Kassa() {
                 )}
               </>
             )}
-
             <Form.Item label="Joylashuv">
-              <Select
-                value={location}
-                onChange={(value) => setLocation(value)}
-                style={{ width: "100%" }}
-              >
-                <Option value="skalad">Skalad</Option>
-                <Option value="dokon">Dokon</Option>
-              </Select>
+              <Input value="Dokon" disabled />
             </Form.Item>
           </Form>
         </Modal>

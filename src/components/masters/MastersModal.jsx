@@ -344,17 +344,7 @@ const MastersModal = ({ visible, onClose }) => {
                   })
                 }
               />
-              <Select
-                placeholder="Valyutani tanlang"
-                value={selectedPayment.currency}
-                onChange={(value) =>
-                  setSelectedPayment({ ...selectedPayment, currency: value })
-                }
-                style={{ width: "100%", marginTop: 8 }}
-              >
-                <Option value="sum">So'm</Option>
-                <Option value="usd">USD</Option>
-              </Select>
+          
               <Select
                 placeholder="To'lov usulini tanlang"
                 value={selectedPayment.payment_method}

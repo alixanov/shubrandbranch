@@ -10,7 +10,7 @@ import {
   message,
   Popconfirm,
 } from "antd";
-import { FaEye, FaPrint } from "react-icons/fa";
+import { FaEye } from "react-icons/fa";
 import {
   useCreatePaymentToMasterMutation,
   useDeleteMasterMutation,
@@ -32,168 +32,16 @@ const MastersModal = ({ visible, onClose }) => {
 
   const usdRate = rate.rate;
 
-  // 80mm chek chiqarish funksiyasi
-  const printReceipt = (masterName, carName, paymentData) => {
-    const receiptWindow = window.open("", "_blank");
-    const currentDate = new Date().toLocaleString("uz-UZ");
-
-    const receiptHTML = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>To'lov Cheki</title>
-                <style>
-                    @media print {
-                        @page {
-                            size: 80mm auto;
-                            margin: 0;
-                        }
-                        body {
-                            font-family: 'Courier New', monospace;
-                            font-size: 12px;
-                            line-height: 1.2;
-                            margin: 0;
-                            padding: 5mm;
-                            width: 70mm;
-                        }
-                    }
-                    body {
-                        font-family: 'Courier New', monospace;
-                        font-size: 12px;
-                        line-height: 1.2;
-                        margin: 0;
-                        padding: 5mm;
-                        width: 70mm;
-                    }
-                    .header {
-                        text-align: center;
-                        border-bottom: 1px dashed #000;
-                        padding-bottom: 5px;
-                        margin-bottom: 10px;
-                    }
-                    .company-name {
-                        font-size: 16px;
-                        font-weight: bold;
-                        margin-bottom: 3px;
-                    }
-                    .receipt-title {
-                        font-size: 14px;
-                        font-weight: bold;
-                    }
-                    .info-section {
-                        margin: 10px 0;
-                    }
-                    .info-row {
-                        display: flex;
-                        justify-content: space-between;
-                        margin: 3px 0;
-                    }
-                    .total {
-                        border-top: 1px dashed #000;
-                        border-bottom: 1px dashed #000;
-                        padding: 8px 0;
-                        margin: 10px 0;
-                        font-weight: bold;
-                    }
-                    .footer {
-                        text-align: center;
-                        margin-top: 15px;
-                        font-size: 10px;
-                        border-top: 1px dashed #000;
-                        padding-top: 8px;
-                    }
-                    .thank-you {
-                        font-size: 12px;
-                        text-align: center;
-                        margin: 10px 0;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="company-name">AVTO EHTIYOT QISMLARI</div>
-                    <div class="receipt-title">TO'LOV CHEKI</div>
-                </div>
-                
-                <div class="info-section">
-                    <div class="info-row">
-                        <span>Sana:</span>
-                        <span>${currentDate}</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Usta:</span>
-                        <span>${masterName}</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Mashina:</span>
-                        <span>${carName}</span>
-                    </div>
-                </div>
-                
-                <div class="total">
-                    <div class="info-row">
-                        <span>To'lov miqdori:</span>
-                        <span>${Number(
-                          paymentData.amount
-                        ).toLocaleString()} ${paymentData.currency.toUpperCase()}</span>
-                    </div>
-                    <div class="info-row">
-                        <span>To'lov usuli:</span>
-                        <span>${
-                          paymentData.payment_method === "cash"
-                            ? "Naqd pul"
-                            : "Karta orqali"
-                        }</span>
-                    </div>
-                </div>
-                
-                <div class="thank-you">
-                    Rahmat!
-                </div>
-                
-                <div class="footer">
-                    Chek №: ${Date.now()}<br>
-                    Kassir: Admin
-                </div>
-            </body>
-            <script>
-                window.onload = function() {
-                    window.print();
-                    window.onafterprint = function() {
-                        window.close();
-                    }
-                }
-            </script>
-            </html>
-        `;
-
-    receiptWindow.document.write(receiptHTML);
-    receiptWindow.document.close();
-  };
-
   const handlePayment = async (masterId, carId) => {
     const { amount, currency, payment_method } = selectedPayment;
     if (!amount || !currency) return message.warning("To'liq to'ldiring");
-
     try {
       await createPayment({
         master_id: masterId,
         car_id: carId,
         payment: { amount, currency, payment_method },
       });
-
       message.success("To'lov qo'shildi");
-
-      // Chek chiqarish uchun kerakli ma'lumotlarni topish
-      const master = masters.find((m) => m._id === masterId);
-      const car = master?.cars.find((c) => c._id === carId);
-
-      if (master && car) {
-        // Chek chiqarish
-        printReceipt(master.master_name, car.car_name, selectedPayment);
-      }
-
       setOpenPaymentPopover(null);
       setSelectedPayment({});
     } catch (err) {
@@ -285,7 +133,7 @@ const MastersModal = ({ visible, onClose }) => {
           return sum + converted;
         }, 0);
         const remaining = totalSales - totalPayments;
-        return remaining <= 0 ? "To'liq to'langan" : remaining.toLocaleString();
+        return remaining <= 0 ? "To‘liq to‘langan" : remaining.toLocaleString();
       },
     },
     {
@@ -336,7 +184,6 @@ const MastersModal = ({ visible, onClose }) => {
               <Input
                 placeholder="Miqdori"
                 type="number"
-                value={selectedPayment.amount || ""}
                 onChange={(e) =>
                   setSelectedPayment({
                     ...selectedPayment,
@@ -344,10 +191,18 @@ const MastersModal = ({ visible, onClose }) => {
                   })
                 }
               />
-          
               <Select
-                placeholder="To'lov usulini tanlang"
-                value={selectedPayment.payment_method}
+                defaultValue=""
+                onChange={(value) =>
+                  setSelectedPayment({ ...selectedPayment, currency: value })
+                }
+                style={{ width: "100%", marginTop: 8 }}
+              >
+                <Option value="sum">So'm</Option>
+                <Option value="usd">USD</Option>
+              </Select>
+              <Select
+                defaultValue=""
                 onChange={(value) =>
                   setSelectedPayment({
                     ...selectedPayment,
@@ -362,15 +217,14 @@ const MastersModal = ({ visible, onClose }) => {
               <Button
                 type="primary"
                 style={{ marginTop: 10, width: "100%" }}
-                icon={<FaPrint />}
                 onClick={() => handlePayment(car.master_id, car._id)}
               >
-                To'lov va Chek chiqarish
+                To'lovni yuborish
               </Button>
             </div>
           }
         >
-          <Button size="small">To'lov</Button>
+          <Button size="small">To‘lov</Button>
         </Popover>
       ),
     },

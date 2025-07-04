@@ -1,4 +1,3 @@
-// 🔃 Importlar
 import React, { useState } from "react";
 import {
   Button,
@@ -14,6 +13,7 @@ import { FaEye } from "react-icons/fa";
 import {
   useCreatePaymentToMasterMutation,
   useDeleteMasterMutation,
+  useDeleteCarFromMasterMutation,
   useGetMastersQuery,
 } from "../../context/service/master.service";
 import { useGetUsdRateQuery } from "../../context/service/usd.service";
@@ -28,6 +28,7 @@ const MastersModal = ({ visible, onClose }) => {
   const [selectedPayment, setSelectedPayment] = useState({});
   const [createPayment] = useCreatePaymentToMasterMutation();
   const [deleteMaster] = useDeleteMasterMutation();
+  const [deleteCarFromMaster] = useDeleteCarFromMasterMutation(); // ✅ YANGI
   const { data: rate = {} } = useGetUsdRateQuery();
 
   const usdRate = rate.rate;
@@ -46,6 +47,15 @@ const MastersModal = ({ visible, onClose }) => {
       setSelectedPayment({});
     } catch (err) {
       message.error("Xatolik yuz berdi");
+    }
+  };
+
+  const handleDeleteCar = async (master_id, car_id) => {
+    try {
+      await deleteCarFromMaster({ master_id, car_id });
+      message.success("Mashina o‘chirildi");
+    } catch (err) {
+      message.error("Mashina o‘chirishda xatolik");
     }
   };
 
@@ -228,6 +238,19 @@ const MastersModal = ({ visible, onClose }) => {
         </Popover>
       ),
     },
+    {
+      title: "O‘chirish",
+      render: (_, car) => (
+        <Popconfirm
+          title="Chindan ham mashinani o‘chirmoqchimisiz?"
+          okText="Ha"
+          cancelText="Yo‘q"
+          onConfirm={() => handleDeleteCar(car.master_id, car._id)}
+        >
+          <Button danger icon={<MdDelete />} size="small" />
+        </Popconfirm>
+      ),
+    },
   ];
 
   const masterColumns = [
@@ -258,16 +281,11 @@ const MastersModal = ({ visible, onClose }) => {
           title="Chindan ham ustani o'chirmoqchimisiz?"
           okText="Ha"
           cancelText="Yo'q"
-          onCancel={() => {}}
           onConfirm={() => {
             deleteMaster({ master_id: record._id });
           }}
         >
-          <Button
-            variant="outlined"
-            color="danger"
-            icon={<MdDelete />}
-          ></Button>
+          <Button danger icon={<MdDelete />} />
         </Popconfirm>
       ),
     },
@@ -290,7 +308,7 @@ const MastersModal = ({ visible, onClose }) => {
           expandedRowRender: (record) => (
             <Table
               columns={carColumns(record.cars)}
-              dataSource={record.cars.map((car, i) => ({
+              dataSource={record.cars.map((car) => ({
                 ...car,
                 master_id: record._id,
               }))}

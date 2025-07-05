@@ -14,11 +14,10 @@ function createWindow() {
     },
   });
 
-  // React dev server ishlatish uchun (development)
   mainWindow.loadURL("http://localhost:3000");
 
 }
-
+// dsads
 app.whenReady().then(() => {
   createWindow();
 });

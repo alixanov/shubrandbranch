@@ -169,7 +169,7 @@ export default function Qarzdor() {
           const isUsdCurrency =
             product.currency === "usd" || selectedDebtor.currency === "usd";
           const originalPrice = Number(product.sell_price || 0);
-          const quantity = Number(product.product_quantity || 1);
+          const quantity = Number(product.quantity || 1);
           const convertedPrice = isUsdCurrency
             ? originalPrice * usdRate
             : originalPrice;

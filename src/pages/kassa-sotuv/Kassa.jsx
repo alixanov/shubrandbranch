@@ -21,6 +21,7 @@ import { useRecordSaleMutation } from "../../context/service/sale.service";
 import {
   useSellProductFromStoreMutation,
   useGetStoreProductsQuery,
+  useUpdateQuantityMutation,
 } from "../../context/service/store.service";
 import {
   useCreateDebtorMutation,
@@ -67,6 +68,7 @@ export default function Kassa() {
   const [vazvratModalVisible, setVazvratModalVisible] = useState(false);
   const receiptRef = useRef();
   const [debtDueDate, setDebtDueDate] = useState(null);
+  const [updateQuantity] = useUpdateQuantityMutation();
   const {
     data: products,
     isLoading,
@@ -370,11 +372,24 @@ export default function Kassa() {
         } else {
           const debtor = debtors.find((d) => d._id === selectedDebtor);
           if (!debtor) return message.error("Tanlangan qarzdor topilmadi");
+
+          for (const item of debtorProducts) {
+            await updateQuantity({
+              id: storeProducts.find(
+                (p) => p.product_id._id === item.product_id
+              )._id,
+              quantity:
+                storeProducts.find((p) => p.product_id._id === item.product_id)
+                  .quantity - item.quantity,
+            }).unwrap();
+          }
+
           const updatedDebt = totalDebt + (debtor.debt_amount || 0);
           const updatedProducts = [
             ...(debtor.products || []),
             ...debtorProducts,
           ];
+
           await editDebtor({
             id: selectedDebtor,
             body: {
@@ -385,6 +400,8 @@ export default function Kassa() {
           }).unwrap();
         }
       }
+      storeRefetch();
+      productRefetch();
       message.success("Mahsulotlar muvaffaqiyatli sotildi!");
       setIsModalVisible(false);
     } catch (error) {

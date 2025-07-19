@@ -44,7 +44,7 @@ export const debtorApi = apiSlice.injectEndpoints({
     }),
     createPayment: builder.mutation({
       query: (body) => ({
-        url: `/debtor`,
+        url: `/pay/debtor`,
         method: "POST",
         body,
       }),

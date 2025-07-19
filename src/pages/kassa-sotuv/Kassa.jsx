@@ -17,7 +17,10 @@ import {
   useGetAllProductsQuery,
   useUpdateProductMutation,
 } from "../../context/service/addproduct.service";
-import { useRecordSaleMutation } from "../../context/service/sale.service";
+import {
+  useGetSalesHistoryQuery,
+  useRecordSaleMutation,
+} from "../../context/service/sale.service";
 import {
   useSellProductFromStoreMutation,
   useGetStoreProductsQuery,
@@ -56,6 +59,8 @@ import instagram from "../../assets/qr-code.png";
 const { Option } = Select;
 
 export default function Kassa() {
+  const { data: sales = [] } = useGetSalesHistoryQuery();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -76,6 +81,8 @@ export default function Kassa() {
   } = useGetAllProductsQuery();
   const { data: storeProducts, refetch: storeRefetch } =
     useGetStoreProductsQuery();
+  console.log(products);
+
   const { data: usdRateData } = useGetUsdRateQuery();
   const [updateProduct] = useUpdateProductMutation();
   const [recordSale] = useRecordSaleMutation();
@@ -86,7 +93,7 @@ export default function Kassa() {
   const [createSaleToCar] = useCreateSaleToCarMutation();
   const [createPaymentToMaster] = useCreatePaymentToMasterMutation();
   const [createDebtor] = useCreateDebtorMutation();
-  const [location, setLocation] = useState(null);
+  const [location, setLocation] = useState("dokon");
   const [sotuvtarixiModalVisible, setSotuvtarixiModalVisible] = useState(false);
   const [currency, setCurrency] = useState("sum");
   const [nasiyaModal, setNasiyaModal] = useState(false);
@@ -117,26 +124,46 @@ export default function Kassa() {
 
   const usdRate = usdRateData?.rate || 1;
 
+  const productSalesMap = {};
+
+  sales?.forEach((sale) => {
+    const productId = sale.product_id?._id;
+    if (productId) {
+      if (!productSalesMap[productId]) {
+        productSalesMap[productId] = 0;
+      }
+      productSalesMap[productId] += sale.quantity || 0;
+    }
+  });
+
   const filteredProducts =
-    products?.filter((product) => {
-      if (!searchTerm) return true; // Agar qidiruv so'zi bo'lmasa, barcha mahsulotlarni ko'rsat
-      const searchWords = searchTerm.toLowerCase().split(" ");
-      const fields = [
-        product.product_name?.toLowerCase() || "",
-        product.barcode?.toLowerCase() || "",
-        product.product_category?.toLowerCase() || "",
-        product.model?.toLowerCase() || "",
-        product.brand_name?.toLowerCase() || "",
-      ];
-      const matchesSearch = searchWords.every((word) =>
-        fields.some((field) => field.includes(word))
-      );
-      const storeProduct = storeProducts?.find(
-        (item) => item.product_id?._id === product._id
-      );
-      const hasStoreStock = (storeProduct?.quantity || 0) > 0;
-      return matchesSearch && hasStoreStock;
-    }) || [];
+    products
+      ?.filter((product) => {
+        if (!searchTerm) return true;
+        const searchWords = searchTerm.toLowerCase().split(" ");
+        const fields = [
+          product.product_name?.toLowerCase() || "",
+          product.barcode?.toLowerCase() || "",
+          product.product_category?.toLowerCase() || "",
+          product.model?.toLowerCase() || "",
+          product.brand_name?.toLowerCase() || "",
+        ];
+        const matchesSearch = searchWords.every((word) =>
+          fields.some((field) => field.includes(word))
+        );
+        const storeProduct = storeProducts?.find(
+          (item) => item.product_id?._id === product._id
+        );
+        const hasStoreStock = (storeProduct?.quantity || 0) > 0;
+        return matchesSearch && hasStoreStock;
+      })
+      // Qo‘shimcha: har bir mahsulotga sotilgan miqdorni biriktiramiz
+      .map((product) => ({
+        ...product,
+        soldQuantity: productSalesMap[product._id] || 0,
+      }))
+      // Sotilgan miqdor bo‘yicha kamayish tartibida saralash
+      .sort((a, b) => b.soldQuantity - a.soldQuantity) || [];
 
   const handleSelectProduct = (product) => {
     const storeProduct = storeProducts?.find(
@@ -318,6 +345,9 @@ export default function Kassa() {
             quantity: product.quantity,
           }).unwrap();
         }
+
+        console.log(location);
+
         const commonSaleData = {
           product_id: product._id,
           product_name: product.product_name,
@@ -824,7 +854,7 @@ export default function Kassa() {
           size="large"
         />
         <Table
-          dataSource={filteredProducts} // Barcha mahsulotlarni ko'rsatish uchun filteredProducts ishlatiladi
+          dataSource={filteredProducts}
           loading={isLoading}
           style={{ width: "100%" }}
           columns={[
@@ -882,9 +912,9 @@ export default function Kassa() {
               dataIndex: "quantity",
               key: "quantity",
               render: (_, record) =>
-                storeProducts?.find(
-                  (product) => product.product_id?._id === record._id
-                )?.quantity || 0,
+                storeProducts
+                  ?.find((product) => product.product_id?._id === record._id)
+                  ?.quantity?.toFixed(3) || 0,
             },
             { title: "Qutisi", dataIndex: "count_type", key: "count_type" },
             { title: "Izoh", dataIndex: "special_notes", key: "special_notes" },

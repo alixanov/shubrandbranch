@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Button,
   Modal,
@@ -10,6 +10,7 @@ import {
   Popconfirm,
 } from "antd";
 import { FaEye } from "react-icons/fa";
+import { useReactToPrint } from "react-to-print";
 import {
   useCreatePaymentToMasterMutation,
   useDeleteMasterMutation,
@@ -18,18 +19,30 @@ import {
 } from "../../context/service/master.service";
 import { useGetUsdRateQuery } from "../../context/service/usd.service";
 import { MdDelete } from "react-icons/md";
+import moment from "moment";
+import PrintUstaChek from "../PrintUstaChek";
 
 const { Option } = Select;
 
 const MastersModal = ({ visible, onClose }) => {
-  const { data: masters = [] } = useGetMastersQuery();
+  const { data: masters = [], refetch } = useGetMastersQuery();
   const [openSalesPopover, setOpenSalesPopover] = useState(null);
   const [openPaymentPopover, setOpenPaymentPopover] = useState(null);
-  const [selectedPayment, setSelectedPayment] = useState({});
+  const [selectedPayment, setSelectedPayment] = useState({ currency: "sum" });
   const [createPayment] = useCreatePaymentToMasterMutation();
   const [deleteMaster] = useDeleteMasterMutation();
   const [deleteCarFromMaster] = useDeleteCarFromMasterMutation(); // ✅ YANGI
   const { data: rate = {} } = useGetUsdRateQuery();
+  const receiptRef = useRef();
+  const [receiptData, setReceiptData] = useState(null);
+
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+    documentTitle: "Usta uchun tolov cheki",
+    onAfterPrint: () => {
+      setReceiptData(null); // modalni yopish
+    },
+  });
 
   const usdRate = rate.rate;
 
@@ -42,9 +55,10 @@ const MastersModal = ({ visible, onClose }) => {
         car_id: carId,
         payment: { amount, currency, payment_method },
       });
+      await refetch();
       message.success("To'lov qo'shildi");
       setOpenPaymentPopover(null);
-      setSelectedPayment({});
+      // setSelectedPayment({});
     } catch (err) {
       message.error("Xatolik yuz berdi");
     }
@@ -60,6 +74,11 @@ const MastersModal = ({ visible, onClose }) => {
   };
 
   const carColumns = (cars = []) => [
+    {
+      title: "Sana",
+      dataIndex: "createdAt",
+      render: (text) => moment(text).format("DD.MM.YYYY HH:mm"),
+    },
     {
       title: "Mashina nomi",
       dataIndex: "car_name",
@@ -184,60 +203,129 @@ const MastersModal = ({ visible, onClose }) => {
     },
     {
       title: "To'lov",
-      render: (_, car) => (
-        <Popover
-          trigger="click"
-          open={openPaymentPopover === car._id}
-          onOpenChange={(open) => setOpenPaymentPopover(open ? car._id : null)}
-          content={
-            <div style={{ width: 200 }}>
-              <Input
-                placeholder="Miqdori"
-                type="number"
-                onChange={(e) =>
-                  setSelectedPayment({
-                    ...selectedPayment,
-                    amount: e.target.value,
-                  })
-                }
-              />
-              <Select
-                defaultValue=""
-                onChange={(value) =>
-                  setSelectedPayment({ ...selectedPayment, currency: value })
-                }
-                style={{ width: "100%", marginTop: 8 }}
-              >
-                <Option value="sum">So'm</Option>
-                <Option value="usd">USD</Option>
-              </Select>
-              <Select
-                defaultValue=""
-                onChange={(value) =>
-                  setSelectedPayment({
-                    ...selectedPayment,
-                    payment_method: value,
-                  })
-                }
-                style={{ width: "100%", marginTop: 8 }}
-              >
-                <Option value="cash">Naqd</Option>
-                <Option value="card">Karta</Option>
-              </Select>
-              <Button
-                type="primary"
-                style={{ marginTop: 10, width: "100%" }}
-                onClick={() => handlePayment(car.master_id, car._id)}
-              >
-                To'lovni yuborish
-              </Button>
-            </div>
-          }
-        >
-          <Button size="small">To‘lov</Button>
-        </Popover>
-      ),
+      render: (_, car) => {
+        // 1) Qolgan summani hisoblaymiz
+        const totalSales = car.sales?.reduce((sum, sale) => {
+          const converted =
+            sale.currency === "usd"
+              ? sale.total_price * usdRate
+              : sale.total_price;
+          return sum + converted;
+        }, 0);
+        const totalPayments = car.payment_log?.reduce((sum, p) => {
+          const converted =
+            p.currency === "usd" ? p.amount * usdRate : p.amount;
+          return sum + converted;
+        }, 0);
+        const remaining = totalSales - totalPayments;
+
+        return (
+          <Popover
+            trigger="click"
+            open={openPaymentPopover === car._id}
+            onOpenChange={(open) => {
+              if (open) {
+                // 2) Popover ochilganda avtomatik setSelectedPayment qilamiz
+                setOpenPaymentPopover(car._id);
+                setSelectedPayment({
+                  carId: car._id,
+                  amount: remaining > 0 ? remaining : 0,
+                  currency: "sum",
+                  payment_method: "cash",
+                });
+              } else {
+                setOpenPaymentPopover(null);
+              }
+            }}
+            content={
+              <div style={{ width: 200 }}>
+                <Input
+                  placeholder="Miqdori"
+                  type="number"
+                  value={
+                    selectedPayment?.carId === car._id
+                      ? selectedPayment.amount
+                      : ""
+                  }
+                  onChange={(e) =>
+                    setSelectedPayment({
+                      ...selectedPayment,
+                      amount: Number(e.target.value),
+                    })
+                  }
+                />
+
+                <Select
+                  value={
+                    selectedPayment?.carId === car._id
+                      ? selectedPayment.currency
+                      : "sum"
+                  }
+                  disabled
+                  style={{ width: "100%", marginTop: 8 }}
+                >
+                  <Option value="sum">So'm</Option>
+                  <Option value="usd">USD</Option>
+                </Select>
+
+                <Select
+                  value={
+                    selectedPayment?.carId === car._id
+                      ? selectedPayment.payment_method
+                      : ""
+                  }
+                  placeholder="To‘lov usuli"
+                  onChange={(value) =>
+                    setSelectedPayment({
+                      ...selectedPayment,
+                      payment_method: value,
+                    })
+                  }
+                  style={{ width: "100%", marginTop: 8 }}
+                >
+                  <Option value="cash">Naqd</Option>
+                  <Option value="card">Karta</Option>
+                </Select>
+
+                <Button
+                  type="primary"
+                  style={{ marginTop: 10, width: "100%" }}
+                  onClick={async () => {
+                    try {
+                      await handlePayment(car.master_id, car._id);
+                      await refetch();
+                      const updatedMaster = masters.find(
+                        (m) => m._id === car.master_id
+                      );
+                      const updatedCar = updatedMaster?.cars?.find(
+                        (c) => c._id === car._id
+                      );
+
+                      if (!updatedCar) {
+                        return message.error("Mashina ma’lumoti yangilanmadi");
+                      }
+                      setReceiptData({
+                        masterName: masters.find((m) => m._id === car.master_id)
+                          ?.master_name,
+                        car,
+                        amount: selectedPayment.amount,
+                      });
+                    } catch (err) {
+                      console.log(err);
+                    }
+                  }}
+                >
+                  To'lovni yuborish
+                </Button>
+              </div>
+            }
+          >
+            <Button size="small">To‘lov</Button>
+          </Popover>
+        );
+      },
     },
+
     {
       title: "O‘chirish",
       render: (_, car) => (
@@ -292,34 +380,54 @@ const MastersModal = ({ visible, onClose }) => {
   ];
 
   return (
-    <Modal
-      open={visible}
-      onCancel={onClose}
-      footer={null}
-      width={700}
-      title="Ustalar ro'yxati"
-    >
-      <Table
-        dataSource={masters}
-        columns={masterColumns}
-        rowKey={(record) => record._id}
-        pagination={false}
-        expandable={{
-          expandedRowRender: (record) => (
-            <Table
-              columns={carColumns(record.cars)}
-              dataSource={record.cars.map((car) => ({
-                ...car,
-                master_id: record._id,
-              }))}
-              rowKey="_id"
-              pagination={false}
-              size="small"
-            />
-          ),
-        }}
-      />
-    </Modal>
+    <>
+      <Modal
+        open={visible}
+        onCancel={onClose}
+        footer={null}
+        width={800}
+        title="Ustalar ro'yxati"
+      >
+        <Table
+          dataSource={masters}
+          columns={masterColumns}
+          rowKey={(record) => record._id}
+          pagination={false}
+          expandable={{
+            expandedRowRender: (record) => (
+              <Table
+                columns={carColumns(record.cars)}
+                dataSource={record.cars.map((car) => ({
+                  ...car,
+                  master_id: record._id,
+                }))}
+                rowKey="_id"
+                pagination={false}
+                size="small"
+              />
+            ),
+          }}
+        />
+      </Modal>
+      <Modal
+        open={!!receiptData}
+        onCancel={() => setReceiptData(null)}
+        footer={[
+          <Button type="primary" onClick={handlePrint}>
+            Chop etish
+          </Button>,
+        ]}
+        title="Usta uchun to‘lov cheki"
+      >
+        <PrintUstaChek
+          ref={receiptRef}
+          masterName={receiptData?.masterName}
+          car={receiptData?.car}
+          usdRate={usdRate}
+          amount={selectedPayment.amount || 0}
+        />
+      </Modal>
+    </>
   );
 };
 

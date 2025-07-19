@@ -23,7 +23,7 @@ export const storeApi = apiSlice.injectEndpoints({
         method: "POST",
         body: { quantity: quantity },
       }),
-      invalidatesTags: [""]
+      invalidatesTags: [""],
     }),
     vazvratTovar: builder.mutation({
       query: (body) => ({
@@ -37,6 +37,7 @@ export const storeApi = apiSlice.injectEndpoints({
         url: "/store",
         method: "GET",
       }),
+      providesTags: ["Store"],
     }),
     removeProductFromStore: builder.mutation({
       query: (id) => ({
@@ -50,6 +51,7 @@ export const storeApi = apiSlice.injectEndpoints({
         method: "POST",
         body: saleData,
       }),
+      invalidatesTags: ["Store"],
     }),
   }),
 });

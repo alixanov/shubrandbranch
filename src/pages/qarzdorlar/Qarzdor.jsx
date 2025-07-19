@@ -51,6 +51,29 @@ export default function Qarzdor() {
     return correctedPrice(price, currency) * quantity;
   };
 
+  const handlePay = async (debtorId, productId) => {
+    const key = `${debtorId}_${productId}`;
+    const amount = Number(paymentAmounts[key]);
+
+    if (!amount || amount <= 0) {
+      message.error("To'g'ri summa kiriting");
+      return;
+    }
+
+    try {
+      await updateDebtor({
+        id: debtorId,
+        paid_amount: amount,
+        product_id: productId,
+      }).unwrap();
+      message.success("To‘lov saqlandi");
+      setPaymentAmounts((prev) => ({ ...prev, [key]: "" }));
+      refetch();
+    } catch (err) {
+      message.error("Xatolik: " + err?.data?.message);
+    }
+  };
+
   const handleReturn = async (debtorId, productId, index) => {
     const key = `${debtorId}_${productId}_${index}`;
     const quantityStr = returnQuantities[key];
@@ -95,7 +118,11 @@ export default function Qarzdor() {
       render: (_, record) => {
         const rate = Number(usdRateData?.rate || 1);
         const amount = Number(record.debt_amount || 0);
+        console.log(amount);
+
         const isUsd = record.currency === "usd";
+        console.log(record.currency);
+
         const total = isUsd ? amount * rate : amount;
         return `${total.toLocaleString("uz-UZ")} so'm`;
       },
@@ -143,6 +170,11 @@ export default function Qarzdor() {
         </Space>
       ),
     },
+    {
+      title:'Sana',
+      dataIndex:"createdAt",
+      render:(text)=>moment(text).format("DD.MM.YYYY HH:ss")
+    }
   ];
 
   return (
@@ -153,7 +185,61 @@ export default function Qarzdor() {
         dataSource={debtors}
         pagination={{ pageSize: 10 }}
       />
+      <Modal
+        open={paymentModalOpen}
+        title={`To‘lov - ${paymentDebtor?.name}`}
+        onCancel={() => {
+          setPaymentModalOpen(false);
+          setPaymentDebtor(null);
+          form.resetFields();
+        }}
+        okText="To‘lash"
+        footer={null}
+      >
+        <Form
+          onFinish={async (values) => {
+            try {
+              values.rate = usdRateData?.rate || 1;
+              values.id = paymentDebtor;
+              values.amount = Number(values.amount);
+              await createPayment(values).unwrap();
+              values.payment_method = "qarzdor_tolovi";
+              message.success("To‘lov amalga oshirildi");
+              setPaymentModalOpen(false);
+              form.resetFields();
+            } catch (err) {
+              message.error("Xatolik: " + err?.data?.message);
+            }
+          }}
+          form={form}
+          layout="vertical"
+        >
+          <Form.Item
+            label="To‘lov summasi"
+            name="amount"
+            rules={[{ required: true, message: "Summani kiriting" }]}
+          >
+            <Input type="number" min={1} />
+          </Form.Item>
 
+          <Form.Item
+            label="Valyuta"
+            name="currency"
+            rules={[{ required: true, message: "Valyutani tanlang" }]}
+            initialValue="usd"
+          >
+            <Select>
+              <Select.Option value="usd">USD</Select.Option>
+              <Select.Option value="sum">So‘m</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              To‘lash
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
       <Modal
         open={modalOpen}
         title={`${selectedDebtor?.name} - mahsulotlar ro'yxati`}
@@ -235,4 +321,3 @@ export default function Qarzdor() {
     </>
   );
 }
- 

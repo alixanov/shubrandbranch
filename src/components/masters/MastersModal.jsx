@@ -76,7 +76,7 @@ const MastersModal = ({ visible, onClose }) => {
   const carColumns = (cars = []) => [
     {
       title: "Sana",
-      dataIndex: "createdAt",
+      dataIndex: "date",
       render: (text) => moment(text).format("DD.MM.YYYY HH:mm"),
     },
     {

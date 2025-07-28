@@ -3,7 +3,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 const baseQuery = fetchBaseQuery({
   baseUrl: "https://shubrandbranch-server.vercel.app/api",
-  baseUrl:"http://localhost:8080/api",
+  // baseUrl:"http://localhost:8080/api",
   prepareHeaders: (headers, { getState }) => {
     const token = localStorage.getItem("access_token");
     if (token) {

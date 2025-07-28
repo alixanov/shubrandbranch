@@ -9,6 +9,9 @@ export const Login = memo(() => {
 
 
 
+
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const value = Object.fromEntries(new FormData(e.target));
@@ -16,7 +19,7 @@ export const Login = memo(() => {
     try {
       const res = await axios.post(
         "https://shubrandbranch-server.vercel.app/api/login",
-        "http://localhost:8080/api/login",
+        // "http://localhost:8080/api/login",
         value
       );
 // cfsdcscs
